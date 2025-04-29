@@ -1,0 +1,144 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block dashboard_content %}
+<div class="container">
+    <!-- Profile Header -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-shrink-0">
+                            <img src="{{ profile.profile_photo.url|default:'/static/images/default-avatar.png' }}" 
+                                 class="rounded-circle" 
+                                 style="width: 100px; height: 100px; object-fit: cover;"
+                                 alt="Profile Photo">
+                        </div>
+                        <div class="flex-grow-1 ms-3">
+                            <h2 class="mb-1">{{ user.get_full_name }}</h2>
+                            <p class="text-muted mb-2">{{ user.email }}</p>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-primary me-2">{{ profile.department }}</span>
+                                <span class="badge bg-secondary">{{ profile.team }}</span>
+                            </div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <a href="{% url 'accounts:profile_settings' %}" class="btn btn-outline-primary">
+                                <i class="bi bi-gear me-2"></i>Settings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Progress Summary -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Progress Summary</h5>
+                    <div class="progress mb-3" style="height: 5px;">
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: {{ completion_percentage }}%"
+                             aria-valuenow="{{ completion_percentage }}"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Modules Completed</span>
+                        <span class="text-primary">{{ completed_modules }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Profile Complete</span>
+                        <span class="text-primary">{{ profile.profile_complete }}%</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Last Login</span>
+                        <span class="text-muted">{{ user.last_login|date:"F j, Y, g:i a" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Badges -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Badges Earned</h5>
+                    <div class="row g-3">
+                        {% for badge in badges %}
+                        <div class="col-6">
+                            <div class="text-center">
+                                <i class="bi bi-{{ badge.icon }} fs-1 text-warning"></i>
+                                <p class="small mb-0">{{ badge.name }}</p>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <p class="text-muted text-center mb-0">No badges earned yet.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Certificates -->
+        <div class="col-md-4 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Certificates</h5>
+                    <div class="list-group list-group-flush">
+                        {% for certificate in certificates %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">{{ certificate.title }}</h6>
+                                    <small class="text-muted">
+                                        Issued: {{ certificate.issued_at|date:"F j, Y" }}
+                                    </small>
+                                </div>
+                                <a href="{{ certificate.file.url }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted text-center mb-0">No certificates earned yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Recent Activity</h5>
+                    <div class="list-group list-group-flush">
+                        {% for log in activity_logs %}
+                        <div class="list-group-item px-0">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <h6 class="mb-1">{{ log.activity_type }}</h6>
+                                    <small class="text-muted">{{ log.details }}</small>
+                                </div>
+                                <small class="text-muted">{{ log.timestamp|timesince }} ago</small>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted text-center mb-0">No recent activity to show.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

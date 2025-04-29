@@ -1,0 +1,138 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block dashboard_content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Training Modules</h1>
+        <button class="btn btn-primary btn-start-course">
+            <i class="bi bi-plus-lg me-2"></i>Start New Course
+        </button>
+    </div>
+
+    <div class="row g-4">
+        {% for module in modules %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="bg-primary bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-{{ module.icon_name }} text-primary fs-4"></i>
+                        </span>
+                        <div class="ms-3">
+                            <h5 class="card-title mb-0">{{ module.title }}</h5>
+                            <span class="badge bg-{{ module.difficulty|default:'secondary' }}">
+                                {{ module.get_difficulty_display }}
+                            </span>
+                        </div>
+                    </div>
+                    <p class="card-text text-muted">{{ module.description }}</p>
+                    
+                    {% if module.user_progress %}
+                        <div class="progress mb-3" style="height: 5px;">
+                            <div class="progress-bar {% if module.user_progress.completion_percentage >= 75 %}bg-success{% elif module.user_progress.completion_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ module.user_progress.completion_percentage }}%"
+                                 aria-valuenow="{{ module.user_progress.completion_percentage }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                {{ module.user_progress.time_spent|default:"0:00:00" }}
+                            </span>
+                            <span class="text-muted">
+                                Progress: {{ module.user_progress.completion_percentage }}%
+                            </span>
+                        </div>
+                        <a href="{% url 'modules:module_detail' module.id %}" class="btn btn-primary w-100">
+                            <i class="bi bi-play-circle me-2"></i>Resume Module
+                        </a>
+                    {% else %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="text-muted">
+                                <i class="bi bi-clock me-1"></i>
+                                {{ module.estimated_duration }} minutes
+                            </span>
+                            <span class="badge bg-{{ module.difficulty }}">
+                                {{ module.get_difficulty_display }}
+                            </span>
+                        </div>
+                        <a href="{% url 'modules:start_module' module.id %}" class="btn btn-success w-100">
+                            <i class="bi bi-play-fill me-2"></i>Start Module
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                No modules available at the moment.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Module List Modal -->
+<div class="modal fade" id="moduleListModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Available Training Modules</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-4">
+                    {% for module in modules %}
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <h5 class="card-title d-flex align-items-center">
+                                    <i class="bi bi-{{ module.icon_name }} me-2"></i>
+                                    {{ module.title }}
+                                </h5>
+                                <p class="card-text small text-muted">{{ module.description }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-{{ module.difficulty }}">
+                                        {{ module.get_difficulty_display }}
+                                    </span>
+                                    {% if module.user_progress %}
+                                        <a href="{% url 'modules:module_detail' module.id %}" 
+                                           class="btn btn-primary btn-sm">
+                                            <i class="bi bi-play-circle me-1"></i>Resume
+                                        </a>
+                                    {% else %}
+                                        <a href="{% url 'modules:start_module' module.id %}" 
+                                           class="btn btn-success btn-sm">
+                                            <i class="bi bi-play-fill me-1"></i>Start
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the modal
+    var moduleModal = new bootstrap.Modal(document.getElementById('moduleListModal'));
+    
+    // Show modal when "Start New Course" button is clicked
+    document.querySelector('.btn-start-course').addEventListener('click', function(e) {
+        e.preventDefault();
+        moduleModal.show();
+    });
+});
+</script>
+{% endblock %} 

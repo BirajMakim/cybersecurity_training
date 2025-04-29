@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #1a237e;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Welcome to Cybersecurity Training!</h2>
+        
+        <p>Hi {{ user.first_name }},</p>
+        
+        <p>Thank you for registering with our Cybersecurity Training platform. To complete your registration and activate your account, please click the button below:</p>
+        
+        <a href="{{ confirmation_link }}" class="button">Verify Email Address</a>
+        
+        <p>If the button above doesn't work, you can copy and paste this link into your browser:</p>
+        <p>{{ confirmation_link }}</p>
+        
+        <p>This verification link will expire in 24 hours for security reasons.</p>
+        
+        <div class="footer">
+            <p>If you didn't create this account, you can safely ignore this email.</p>
+            <p>Best regards,<br>The Cybersecurity Training Team</p>
+        </div>
+    </div>
+</body>
+</html> 

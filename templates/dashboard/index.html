@@ -1,0 +1,177 @@
+{% extends 'dashboard/base_dashboard.html' %}
+
+{% block dashboard_content %}
+<!-- Page Title -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Welcome, {{ user.first_name }}!</h1>
+    <a href="{% url 'modules:start_new_course' %}" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-2"></i>Start New Course
+    </a>
+</div>
+
+<!-- Progress Overview -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 me-3">
+                        <div class="bg-primary bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-graph-up text-primary fs-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Course Progress</h6>
+                        <h4 class="mb-0">{{ total_progress }}%</h4>
+                    </div>
+                </div>
+                <div class="progress mt-3" style="height: 5px;">
+                    <div class="progress-bar bg-primary" role="progressbar" 
+                         style="width: {{ total_progress }}%" 
+                         aria-valuenow="{{ total_progress }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 me-3">
+                        <div class="bg-success bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-trophy text-success fs-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Completed Modules</h6>
+                        <h4 class="mb-0">{{ completed_modules }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="flex-shrink-0 me-3">
+                        <div class="bg-warning bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-clock-history text-warning fs-4"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">Hours Spent</h6>
+                        <h4 class="mb-0">{{ total_hours }}</h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Courses -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0">Current Courses</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for course in current_courses %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex w-100 justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">{{ course.module.title }}</h6>
+                                <div class="progress" style="height: 5px; width: 200px;">
+                                    <div class="progress-bar {% if course.completion_percentage >= 75 %}bg-success{% elif course.completion_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                         style="width: {{ course.completion_percentage }}%"></div>
+                                </div>
+                            </div>
+                            <span class="badge {% if course.completion_percentage >= 75 %}bg-success{% elif course.completion_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ course.completion_percentage }}% Complete
+                            </span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No active courses. Start a new course to begin learning!</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0">Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group list-group-flush">
+                    {% for activity in recent_activity %}
+                    <div class="list-group-item px-0">
+                        <div class="d-flex w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-1">
+                                    {% if activity.is_completed %}
+                                    Completed Module: {{ activity.module.title }}
+                                    {% else %}
+                                    Progress in {{ activity.module.title }}: {{ activity.completion_percentage }}%
+                                    {% endif %}
+                                </h6>
+                                <small class="text-muted">
+                                    {% if activity.is_completed %}
+                                    Score: {{ activity.completion_percentage }}%
+                                    {% else %}
+                                    Last updated: {{ activity.last_accessed|timesince }} ago
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <small class="text-muted">{{ activity.last_accessed|timesince }} ago</small>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-3">
+                        <p class="text-muted mb-0">No recent activity to show.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Update progress every 30 seconds
+    setInterval(function() {
+        fetch('/dashboard/')
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Update progress values
+                document.querySelector('.progress-bar').style.width = doc.querySelector('.progress-bar').style.width;
+                document.querySelector('.progress-bar').setAttribute('aria-valuenow', 
+                    doc.querySelector('.progress-bar').getAttribute('aria-valuenow'));
+                
+                // Update other statistics
+                document.querySelectorAll('.card-body h4').forEach((el, index) => {
+                    const newValue = doc.querySelectorAll('.card-body h4')[index].textContent;
+                    el.textContent = newValue;
+                });
+            });
+    }, 30000);
+});
+</script>
+{% endblock %} 
