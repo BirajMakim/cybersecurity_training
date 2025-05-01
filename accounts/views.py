@@ -1,7 +1,7 @@
 from django.contrib.auth import login, authenticate, logout
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordChangeForm
 from django.shortcuts import render, redirect
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMessage
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -10,29 +10,48 @@ from django.utils.encoding import force_bytes, force_str
 from django.template.loader import render_to_string
 from django.contrib.auth.tokens import default_token_generator
 from django.http import HttpResponse, JsonResponse
+from django.contrib.sites.shortcuts import get_current_site
 import smtplib
 from django.contrib.auth.decorators import login_required
-from .forms import CustomUserCreationForm, CustomAuthenticationForm
+from .forms import CustomUserCreationForm, CustomAuthenticationForm, CustomPasswordChangeForm, UserProfileForm
 from django.contrib.auth import update_session_auth_hash
-from django.contrib.auth.forms import PasswordChangeForm
 from django.utils import timezone
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from .models import UserProfile, UserActivityLog, UserBadge, UserCertificate
-from .forms import ProfileUpdateForm, ProfileSettingsForm
+from .forms import ProfileUpdateForm, ProfileSettingsForm, ProfileEditForm
+from .tokens import account_activation_token
 import json
 from datetime import datetime
+from dashboard.utils import create_user_notification
+
+def send_activation_email(request, user, to_email):
+    mail_subject = "Activate your account"
+    message = render_to_string("accounts/email_activation.html", {
+        'user': user,
+        'domain': get_current_site(request).domain,
+        'uid': urlsafe_base64_encode(force_bytes(user.pk)),
+        'token': account_activation_token.make_token(user),
+        'protocol': 'https' if request.is_secure() else 'http'
+    })
+    email = EmailMessage(mail_subject, message, to=[to_email])
+    if email.send():
+        messages.success(request, f'Dear {user.username}, please go to your email {to_email} inbox and click on the received activation link to confirm and complete the registration. Note: Check your spam folder.')
+    else:
+        messages.error(request, f'Problem sending email to {to_email}, check if you typed it correctly.')
 
 def register_view(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.is_active = True  # Make user active immediately
+            user.is_active = True  # Set user as active immediately
             user.save()
             
-            messages.success(request, f'Account created successfully! Please login to continue.')
-            return redirect('accounts:login')  # Redirect to login page
+            # Log the user in directly after registration
+            login(request, user)
+            messages.success(request, f'Welcome {user.username}! Your account has been created successfully.')
+            return redirect('/dashboard/')
     else:
         form = CustomUserCreationForm()
     return render(request, 'accounts/register.html', {'form': form})
@@ -44,14 +63,14 @@ def activate_account(request, uidb64, token):
     except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         user = None
 
-    if user is not None and default_token_generator.check_token(user, token):
+    if user is not None and account_activation_token.check_token(user, token):
         user.is_active = True
         user.save()
         messages.success(request, 'Your account has been activated successfully! You can now login.')
-        return redirect('login')
+        return redirect('accounts:login')
     else:
         messages.error(request, 'The confirmation link was invalid or has expired.')
-        return redirect('register')
+        return redirect('accounts:register')
 
 def login_view(request):
     if request.method == 'POST':
@@ -59,29 +78,19 @@ def login_view(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
         
-        # Add debug messages
-        messages.info(request, f'Attempting login for user: {username}')
-        
         if form.is_valid():
             user = authenticate(username=username, password=password)
             
             if user is not None:
-                if user.is_active:
-                    login(request, user)
-                    messages.success(request, f'Welcome back, {user.username}!')
-                    return redirect('/dashboard/')
-                else:
-                    messages.error(request, 'Your account is not active.')
+                login(request, user)
+                messages.success(request, f'Welcome back, {user.username}!')
+                return redirect('/dashboard/')
             else:
-                messages.error(request, f'Authentication failed for user {username}. Please check your credentials.')
+                messages.error(request, 'Invalid username or password. Please try again.')
+                return redirect('accounts:login')
         else:
-            # Print form errors
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'Form Error - {field}: {error}')
-            
-        # Instead of redirecting, render the form with errors
-        return render(request, 'accounts/login.html', {'form': form})
+            messages.error(request, 'Invalid username or password. Please try again.')
+            return redirect('accounts:login')
     else:
         form = CustomAuthenticationForm()
     
@@ -94,28 +103,14 @@ def logout_view(request):
     return redirect('accounts:login')
 
 @login_required
-def profile(request):
+def profile_view(request):
     user = request.user
     profile = user.user_profile
-    activity_logs = UserActivityLog.objects.filter(user=user).order_by('-timestamp')[:5]
-    badges = UserBadge.objects.filter(user=user)
-    certificates = UserCertificate.objects.filter(user=user)
-    
-    # Get progress statistics
-    completed_modules = user.module_progress.filter(is_completed=True).count()
-    total_modules = user.module_progress.count()
-    completion_percentage = (completed_modules / total_modules * 100) if total_modules > 0 else 0
-    
     context = {
         'user': user,
         'profile': profile,
-        'activity_logs': activity_logs,
-        'badges': badges,
-        'certificates': certificates,
-        'completed_modules': completed_modules,
-        'completion_percentage': completion_percentage,
     }
-    return render(request, 'accounts/profile.html', context)
+    return render(request, 'accounts/profile_view.html', context)
 
 @login_required
 def profile_settings(request):
@@ -147,21 +142,44 @@ def profile_settings(request):
 @login_required
 def change_password(request):
     if request.method == 'POST':
-        form = PasswordChangeForm(request.user, request.POST)
+        form = CustomPasswordChangeForm(request.user, request.POST)
         if form.is_valid():
             user = form.save()
-            update_session_auth_hash(request, user)
-            messages.success(request, 'Your password was successfully updated!')
-            return redirect('accounts:profile_settings')
+            update_session_auth_hash(request, user)  # Important to keep the user logged in
+            
+            # Log the activity
+            UserActivityLog.objects.create(
+                user=request.user,
+                activity_type='PASSWORD_CHANGE',
+                ip_address=request.META.get('REMOTE_ADDR'),
+                device_info=request.META.get('HTTP_USER_AGENT', ''),
+                details='Password changed successfully'
+            )
+            
+            # Send email notification
+            try:
+                send_mail(
+                    'Password Changed Successfully',
+                    f'Hello {user.get_full_name()},\n\nYour password has been changed successfully. If you did not make this change, please contact support immediately.\n\nBest regards,\nThe {settings.SITE_NAME} Team',
+                    settings.DEFAULT_FROM_EMAIL,
+                    [user.email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                # Log the email error but don't fail the password change
+                print(f"Failed to send password change email: {e}")
+            
+            messages.success(request, 'Your password has been updated successfully!')
+            return redirect('accounts:password_change_done')
         else:
-            messages.error(request, 'Please correct the error below.')
+            messages.error(request, 'Please correct the errors below.')
     else:
-        form = PasswordChangeForm(request.user)
+        form = CustomPasswordChangeForm(request.user)
     
     context = {
-        'form': form
+        'form': form,
     }
-    return render(request, 'accounts/change_password.html', context)
+    return render(request, 'accounts/password_change.html', context)
 
 @login_required
 def toggle_mfa(request):
@@ -275,3 +293,71 @@ def delete_account(request):
         return redirect('accounts:login')
     
     return render(request, 'accounts/delete_account.html')
+
+@login_required
+def profile_edit(request):
+    if request.method == 'POST':
+        form = UserProfileForm(request.POST, request.FILES, instance=request.user.user_profile)
+        if form.is_valid():
+            old_profile = request.user.user_profile
+            profile = form.save(commit=False)
+            
+            # Check what fields changed and create notifications
+            if old_profile.email != profile.email:
+                create_user_notification(
+                    request.user,
+                    f"Your email has been updated to {profile.email}",
+                    'success'
+                )
+            
+            if request.FILES.get('profile_photo'):
+                create_user_notification(
+                    request.user,
+                    "Your profile photo has been updated",
+                    'success'
+                )
+            
+            if (old_profile.first_name != profile.first_name or 
+                old_profile.last_name != profile.last_name):
+                create_user_notification(
+                    request.user,
+                    "Your name has been updated",
+                    'success'
+                )
+            
+            if old_profile.department != profile.department:
+                create_user_notification(
+                    request.user,
+                    f"Your department has been updated to {profile.department}",
+                    'info'
+                )
+            
+            profile.save()
+            messages.success(request, 'Your profile has been updated successfully.')
+            return redirect('accounts:profile')
+    else:
+        form = UserProfileForm(instance=request.user.user_profile)
+    
+    return render(request, 'accounts/profile_edit.html', {'form': form})
+
+@login_required
+def password_change(request):
+    if request.method == 'POST':
+        form = CustomPasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)
+            
+            # Create notification for password change
+            create_user_notification(
+                request.user,
+                "Your password has been changed successfully",
+                'success'
+            )
+            
+            messages.success(request, 'Your password was successfully updated!')
+            return redirect('accounts:profile')
+    else:
+        form = CustomPasswordChangeForm(request.user)
+    
+    return render(request, 'accounts/password_change.html', {'form': form})

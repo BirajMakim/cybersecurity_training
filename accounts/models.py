@@ -24,50 +24,38 @@ class Profile(models.Model):
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
+        UserProfile.objects.create(user=instance)
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
     instance.email_profile.save()
+    if hasattr(instance, 'user_profile'):
+        instance.user_profile.save()
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_profile')
+    first_name = models.CharField(max_length=30, blank=True)
+    last_name = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(unique=True, blank=True, null=True)
     department = models.CharField(max_length=100, blank=True)
     team = models.CharField(max_length=100, blank=True)
-    profile_photo = models.ImageField(
-        upload_to='profile_photos/',
-        blank=True,
-        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png'])]
-    )
+    role = models.CharField(max_length=100, blank=True)
+    profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
     mfa_enabled = models.BooleanField(default=False)
     email_notifications = models.BooleanField(default=True)
     weekly_summary = models.BooleanField(default=True)
-    show_in_leaderboard = models.BooleanField(default=True)
-    profile_complete = models.IntegerField(default=0)  # Percentage
-    last_login_ip = models.GenericIPAddressField(null=True, blank=True)
-    last_login_device = models.CharField(max_length=255, blank=True)
-    dark_mode = models.BooleanField(default=False)
-    created_at = models.DateTimeField(default=timezone.now)
+    profile_complete = models.FloatField(default=0)  # Percentage of profile completion
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.user.get_full_name()}'s Profile"
+        return f"{self.user.username}'s Profile"
 
     def calculate_profile_complete(self):
-        total_fields = 5  # Adjust based on required fields
-        completed_fields = 0
-        
-        if self.user.first_name and self.user.last_name:
-            completed_fields += 1
-        if self.department:
-            completed_fields += 1
-        if self.team:
-            completed_fields += 1
-        if self.profile_photo:
-            completed_fields += 1
-        if self.user.email:
-            completed_fields += 1
-            
-        self.profile_complete = (completed_fields / total_fields) * 100
+        """Calculate the percentage of profile completion"""
+        fields = ['first_name', 'last_name', 'email', 'department', 'team', 'role', 'profile_photo']
+        completed = sum(1 for field in fields if getattr(self, field))
+        self.profile_complete = (completed / len(fields)) * 100
         self.save()
 
 class UserActivityLog(models.Model):

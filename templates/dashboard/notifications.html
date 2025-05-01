@@ -1,0 +1,126 @@
+{% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Notifications</h1>
+        {% if unread_count > 0 %}
+            <button class="btn btn-primary" id="markAllRead">
+                <i class="bi bi-check-all me-2"></i>Mark All as Read
+            </button>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            {% if notifications %}
+                <div class="list-group">
+                    {% for notification in notifications %}
+                        <div class="list-group-item {% if not notification.is_read %}list-group-item-primary{% endif %}">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <i class="{{ notification.get_icon_class }} me-3 fs-4"></i>
+                                    <div>
+                                        <h5 class="mb-1">{{ notification.message }}</h5>
+                                        <small class="text-muted">{{ notification.timestamp|timesince }} ago</small>
+                                    </div>
+                                </div>
+                                {% if not notification.is_read %}
+                                    <button class="btn btn-sm btn-outline-primary mark-read" data-id="{{ notification.id }}">
+                                        <i class="bi bi-check"></i>
+                                        Mark as Read
+                                    </button>
+                                {% endif %}
+                            </div>
+                            {% if notification.link %}
+                                <div class="mt-2">
+                                    <a href="{{ notification.link }}" class="btn btn-sm btn-link">
+                                        <i class="bi bi-arrow-right me-1"></i>View Details
+                                    </a>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+
+                {% if notifications.has_other_pages %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if notifications.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ notifications.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            {% for num in notifications.paginator.page_range %}
+                                <li class="page-item {% if notifications.number == num %}active{% endif %}">
+                                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                </li>
+                            {% endfor %}
+
+                            {% if notifications.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ notifications.next_page_number }}">Next</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="bi bi-bell-slash fs-1 text-muted mb-3"></i>
+                    <h5>No notifications yet</h5>
+                    <p class="text-muted">You'll see notifications here when they arrive.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Mark all as read
+    const markAllReadBtn = document.getElementById('markAllRead');
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', function() {
+            fetch('{% url "dashboard:mark_all_read" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            });
+        });
+    }
+
+    // Mark individual notification as read
+    document.querySelectorAll('.mark-read').forEach(button => {
+        button.addEventListener('click', function() {
+            const notificationId = this.dataset.id;
+            fetch(`/dashboard/notifications/${notificationId}/mark-read/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    location.reload();
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %} 

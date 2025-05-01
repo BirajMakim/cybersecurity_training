@@ -53,6 +53,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'accounts.middleware.BypassActivationMiddleware',
 ]
 
 ROOT_URLCONF = 'cybersecurity_training.urls'
@@ -81,11 +82,21 @@ WSGI_APPLICATION = 'cybersecurity_training.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',  # database
-        'USER': 'postgres.kgexeshuuoonbrgoyazp',  # user (NOT just postgres)
-        'PASSWORD': '6XB07HW15D81nxUR',  # your password
-        'HOST': 'aws-0-ap-southeast-2.pooler.supabase.com',  # host
-        'PORT': '6543',  # new port
+        'NAME': 'postgres',
+        'USER': 'postgres.kgexeshuuoonbrgoyazp',
+        'PASSWORD': '6XB07HW15D81nxUR',
+        'HOST': 'aws-0-ap-southeast-2.pooler.supabase.com',
+        'PORT': '6543',
+        'OPTIONS': {
+            'connect_timeout': 30,
+            'sslmode': 'require',
+            'target_session_attrs': 'read-write',
+            'keepalives': 1,
+            'keepalives_idle': 30,
+            'keepalives_interval': 10,
+            'keepalives_count': 5,
+            'application_name': 'django_app'  # Add application name for better tracking
+        }
     }
 }
 
@@ -116,9 +127,10 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 EMAIL_TIMEOUT = 30
+EMAIL_FROM = 'birajmakim802@gmail.com'
 EMAIL_HOST_USER = 'birajmakim802@gmail.com'
 # Generate a new App Password from Google Account settings and replace it here
-EMAIL_HOST_PASSWORD = ''  # Put your new 16-character app password here
+EMAIL_HOST_PASSWORD = 'gnxfapvwjyfydevb'  # Put your new 16-character app password here
 DEFAULT_FROM_EMAIL = 'birajmakim802@gmail.com'
 
 

@@ -1,144 +1,164 @@
 {% extends 'dashboard/base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Profile - {{ user.get_full_name }}{% endblock %}
 
 {% block dashboard_content %}
-<div class="container">
-    <!-- Profile Header -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-body">
-                    <div class="d-flex align-items-center">
-                        <div class="flex-shrink-0">
-                            <img src="{{ profile.profile_photo.url|default:'/static/images/default-avatar.png' }}" 
-                                 class="rounded-circle" 
-                                 style="width: 100px; height: 100px; object-fit: cover;"
-                                 alt="Profile Photo">
-                        </div>
-                        <div class="flex-grow-1 ms-3">
-                            <h2 class="mb-1">{{ user.get_full_name }}</h2>
-                            <p class="text-muted mb-2">{{ user.email }}</p>
-                            <div class="d-flex align-items-center">
-                                <span class="badge bg-primary me-2">{{ profile.department }}</span>
-                                <span class="badge bg-secondary">{{ profile.team }}</span>
-                            </div>
-                        </div>
-                        <div class="flex-shrink-0">
-                            <a href="{% url 'accounts:profile_settings' %}" class="btn btn-outline-primary">
-                                <i class="bi bi-gear me-2"></i>Settings
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
+<div class="container py-4">
     <div class="row">
-        <!-- Progress Summary -->
-        <div class="col-md-4 mb-4">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Progress Summary</h5>
-                    <div class="progress mb-3" style="height: 5px;">
-                        <div class="progress-bar bg-primary" role="progressbar" 
-                             style="width: {{ completion_percentage }}%"
-                             aria-valuenow="{{ completion_percentage }}"
-                             aria-valuemin="0"
-                             aria-valuemax="100">
+        <!-- Profile Card -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-body text-center">
+                    {% if profile.profile_photo %}
+                        <img src="{{ profile.profile_photo.url }}" class="rounded-circle mb-3" width="150" height="150" alt="Profile Photo">
+                    {% else %}
+                        <div class="rounded-circle bg-light mb-3 mx-auto" style="width: 150px; height: 150px; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-person-circle fa-4x text-secondary"></i>
+                        </div>
+                    {% endif %}
+                    <h3 class="card-title">{{ user.get_full_name }}</h3>
+                    <p class="text-muted">{{ user.email }}</p>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ profile.profile_complete }}%">
+                            {{ profile.profile_complete }}% Complete
                         </div>
                     </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Modules Completed</span>
-                        <span class="text-primary">{{ completed_modules }}</span>
-                    </div>
-                    <div class="d-flex justify-content-between mb-3">
-                        <span>Profile Complete</span>
-                        <span class="text-primary">{{ profile.profile_complete }}%</span>
-                    </div>
-                    <div class="d-flex justify-content-between">
-                        <span>Last Login</span>
-                        <span class="text-muted">{{ user.last_login|date:"F j, Y, g:i a" }}</span>
-                    </div>
+                    <a href="{% url 'accounts:profile_settings' %}" class="btn btn-primary">
+                        <i class="bi bi-gear"></i> Edit Profile
+                    </a>
                 </div>
             </div>
         </div>
 
-        <!-- Badges -->
-        <div class="col-md-4 mb-4">
-            <div class="card border-0 shadow-sm h-100">
+        <!-- Profile Details -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Profile Information</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">Badges Earned</h5>
-                    <div class="row g-3">
-                        {% for badge in badges %}
-                        <div class="col-6">
-                            <div class="text-center">
-                                <i class="bi bi-{{ badge.icon }} fs-1 text-warning"></i>
-                                <p class="small mb-0">{{ badge.name }}</p>
-                            </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Department:</strong> {{ profile.department|default:"Not set" }}</p>
+                            <p><strong>Team:</strong> {{ profile.team|default:"Not set" }}</p>
+                            <p><strong>Member Since:</strong> {{ user.date_joined|date:"F Y" }}</p>
                         </div>
-                        {% empty %}
-                        <div class="col-12">
-                            <p class="text-muted text-center mb-0">No badges earned yet.</p>
+                        <div class="col-md-6">
+                            <p><strong>Last Login:</strong> {{ user.last_login|date:"F j, Y, g:i a" }}</p>
+                            <p><strong>Email Notifications:</strong> 
+                                {% if profile.email_notifications %}
+                                    <span class="badge bg-success">Enabled</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Disabled</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>MFA Status:</strong>
+                                {% if profile.mfa_enabled %}
+                                    <span class="badge bg-success">Enabled</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Disabled</span>
+                                {% endif %}
+                            </p>
                         </div>
-                        {% endfor %}
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Certificates -->
-        <div class="col-md-4 mb-4">
-            <div class="card border-0 shadow-sm h-100">
+            <!-- Progress Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Training Progress</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">Certificates</h5>
-                    <div class="list-group list-group-flush">
-                        {% for certificate in certificates %}
-                        <div class="list-group-item px-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h6 class="mb-1">{{ certificate.title }}</h6>
-                                    <small class="text-muted">
-                                        Issued: {{ certificate.issued_at|date:"F j, Y" }}
-                                    </small>
+                    <div class="progress mb-3">
+                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ completion_percentage }}%">
+                            {{ completion_percentage|floatformat:0 }}%
+                        </div>
+                    </div>
+                    <p class="mb-0">{{ completed_modules }} of {{ total_modules }} modules completed</p>
+                </div>
+            </div>
+
+            <!-- Badges Section -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Achievements</h5>
+                </div>
+                <div class="card-body">
+                    {% if badges %}
+                        <div class="row">
+                            {% for badge in badges %}
+                                <div class="col-md-4 mb-3">
+                                    <div class="text-center">
+                                        <i class="{{ badge.icon }} fa-3x mb-2 text-warning"></i>
+                                        <h6>{{ badge.name }}</h6>
+                                        <small class="text-muted">{{ badge.description }}</small>
+                                    </div>
                                 </div>
-                                <a href="{{ certificate.file.url }}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-download"></i>
-                                </a>
-                            </div>
+                            {% endfor %}
                         </div>
-                        {% empty %}
-                        <p class="text-muted text-center mb-0">No certificates earned yet.</p>
-                        {% endfor %}
-                    </div>
+                    {% else %}
+                        <p class="text-muted text-center">No achievements yet. Complete modules to earn badges!</p>
+                    {% endif %}
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Recent Activity -->
-    <div class="row">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
+            <!-- Recent Activity -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title">Recent Activity</h5>
-                    <div class="list-group list-group-flush">
-                        {% for log in activity_logs %}
-                        <div class="list-group-item px-0">
-                            <div class="d-flex justify-content-between">
-                                <div>
-                                    <h6 class="mb-1">{{ log.activity_type }}</h6>
-                                    <small class="text-muted">{{ log.details }}</small>
+                    {% if activity_logs %}
+                        <div class="list-group">
+                            {% for log in activity_logs %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ log.activity_type }}</h6>
+                                        <small class="text-muted">{{ log.timestamp|timesince }} ago</small>
+                                    </div>
+                                    <p class="mb-1">{{ log.details }}</p>
+                                    <small class="text-muted">From {{ log.ip_address }}</small>
                                 </div>
-                                <small class="text-muted">{{ log.timestamp|timesince }} ago</small>
-                            </div>
+                            {% endfor %}
                         </div>
-                        {% empty %}
-                        <p class="text-muted text-center mb-0">No recent activity to show.</p>
-                        {% endfor %}
-                    </div>
+                    {% else %}
+                        <p class="text-muted text-center">No recent activity</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        border: none;
+        border-radius: 10px;
+    }
+    .card-header {
+        border-bottom: 1px solid rgba(0,0,0,.125);
+    }
+    .progress {
+        height: 10px;
+        border-radius: 5px;
+    }
+    .badge {
+        font-size: 0.8rem;
+        padding: 0.35em 0.65em;
+    }
+    .list-group-item {
+        border-left: none;
+        border-right: none;
+    }
+    .list-group-item:first-child {
+        border-top: none;
+    }
+    .list-group-item:last-child {
+        border-bottom: none;
+    }
+</style>
 {% endblock %} 

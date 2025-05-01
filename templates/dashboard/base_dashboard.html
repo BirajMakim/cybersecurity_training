@@ -46,6 +46,8 @@
         .top-navbar {
             background: rgba(255,255,255,0.95);
             backdrop-filter: blur(10px);
+            position: relative;
+            z-index: 1020;
         }
 
         .notification-badge {
@@ -67,6 +69,142 @@
             .main-content {
                 margin-top: 60px;
             }
+        }
+
+        .dropdown-menu {
+            min-width: 280px;
+            padding: 1rem;
+        }
+        
+        .dropdown-item {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+        
+        .dropdown-item:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .dropdown-menu-dark .dropdown-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .dropdown-item i {
+            font-size: 1.25rem;
+            width: 1.5rem;
+            text-align: center;
+        }
+        
+        .dropdown-item-text {
+            padding: 1rem;
+        }
+        
+        .dropdown-divider {
+            margin: 0.5rem -1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .dropdown-menu {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 100% !important;
+                height: 100vh !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                border: none !important;
+                padding-top: 2rem !important;
+            }
+            
+            .dropdown-menu::before {
+                content: '×';
+                position: absolute;
+                top: 0.5rem;
+                right: 1rem;
+                font-size: 1.5rem;
+                cursor: pointer;
+            }
+        }
+
+        /* Notification Dropdown Styles */
+        .notification-dropdown {
+            min-width: 320px;
+            max-width: 400px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .notification-dropdown .dropdown-header {
+            padding: 0.5rem 1rem;
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+        
+        .notification-dropdown .dropdown-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            transition: background-color 0.2s ease;
+        }
+        
+        .notification-dropdown .dropdown-item:last-child {
+            border-bottom: none;
+        }
+        
+        .notification-dropdown .dropdown-item:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+        
+        .notification-dropdown .dropdown-item.unread {
+            background-color: rgba(13, 110, 253, 0.05);
+        }
+        
+        .notification-dropdown .mark-read {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .notification-dropdown .mark-read:hover {
+            background-color: rgba(13, 110, 253, 0.1);
+        }
+        
+        .notification-dropdown .text-muted {
+            font-size: 0.75rem;
+        }
+        
+        #notificationBadge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+        }
+
+        /* Header Icons Spacing and Alignment */
+        .navbar-nav .d-flex.gap-4 {
+            margin-left: 1.5rem;
+        }
+        
+        .nav-link .bi-chevron-down {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+        
+        .nav-link {
+            padding: 0.5rem 0;
+        }
+        
+        @media (max-width: 768px) {
+            .navbar-nav .d-flex.gap-4 {
+                margin-left: 0;
+                margin-top: 0.5rem;
+            }
+        }
+        
+        /* Notification bell container */
+        .position-relative .bi-bell {
+            margin-right: 2px;
+        }
+        
+        /* Profile dropdown alignment */
+        #navbarUserDropdown {
+            padding: 0;
         }
     </style>
 </head>
@@ -101,22 +239,67 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'dashboard:notifications' %}" class="nav-link text-white">
+                            <a href="{% url 'dashboard:notifications' %}" class="nav-link {% if request.resolver_match.url_name == 'notifications' %}active{% else %}text-white{% endif %}">
                                 <i class="bi bi-bell me-2"></i>
                                 Notifications
+                                {% if unread_notifications_count > 0 %}
+                                    <span class="badge bg-danger rounded-pill ms-2">{{ unread_notifications_count }}</span>
+                                {% endif %}
                             </a>
                         </li>
                     </ul>
                     <hr class="text-white-50">
                     <div class="dropdown">
-                        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="dropdownUser1" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-person-circle fs-4 me-2"></i>
-                            <strong>{{ user.first_name }}</strong>
+                        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="sidebarUserDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            {% if user.user_profile.profile_photo %}
+                                <img src="{{ user.user_profile.profile_photo.url }}" class="rounded-circle me-2" width="32" height="32" alt="Profile Photo">
+                            {% else %}
+                                <i class="bi bi-person-circle fs-4 me-2"></i>
+                            {% endif %}
+                            <strong>{{ user.get_full_name|default:user.username }}</strong>
                         </a>
-                        <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
-                            <li><a class="dropdown-item" href="{% url 'dashboard:profile' %}">Settings</a></li>
+                        <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="sidebarUserDropdown">
+                            <li class="dropdown-item-text">
+                                <div class="d-flex align-items-center mb-2">
+                                    {% if user.user_profile.profile_photo %}
+                                        <img src="{{ user.user_profile.profile_photo.url }}" class="rounded-circle me-2" width="48" height="48" alt="Profile Photo">
+                                    {% else %}
+                                        <i class="bi bi-person-circle fs-1 me-2"></i>
+                                    {% endif %}
+                                    <div>
+                                        <strong class="d-block">{{ user.get_full_name }}</strong>
+                                        <span class="text-muted small">@{{ user.username }}</span>
+                                    </div>
+                                </div>
+                                <div class="small text-muted mb-2">{{ user.email }}</div>
+                                <div class="small text-muted">Member since {{ user.date_joined|date:"F Y" }}</div>
+                                {% if user.user_profile.role %}
+                                    <div class="small text-muted">{{ user.user_profile.role }}</div>
+                                {% endif %}
+                            </li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Sign out</a></li>
+                            <li><a class="dropdown-item d-flex align-items-center" href="{% url 'accounts:profile_edit' %}">
+                                <i class="bi bi-pencil-square me-2"></i>
+                                <div>
+                                    <strong class="d-block">Edit Profile</strong>
+                                    <span class="small text-muted">Update your profile information</span>
+                                </div>
+                            </a></li>
+                            <li><a class="dropdown-item d-flex align-items-center" href="{% url 'accounts:password_change' %}">
+                                <i class="bi bi-key me-2"></i>
+                                <div>
+                                    <strong class="d-block">Change Password</strong>
+                                    <span class="small text-muted">Update your password</span>
+                                </div>
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item d-flex align-items-center text-danger" href="{% url 'accounts:logout' %}">
+                                <i class="bi bi-box-arrow-right me-2"></i>
+                                <div>
+                                    <strong class="d-block">Sign out</strong>
+                                    <span class="small">Log out of your account</span>
+                                </div>
+                            </a></li>
                         </ul>
                     </div>
                 </div>
@@ -139,27 +322,86 @@
                                     <input type="search" class="form-control border-start-0" placeholder="Search...">
                                 </div>
                             </form>
-                            <ul class="navbar-nav">
-                                <li class="nav-item me-3 position-relative">
-                                    <a class="nav-link" href="#">
-                                        <i class="bi bi-bell fs-5"></i>
-                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                            3
-                                        </span>
+                            <div class="d-flex align-items-center gap-4">
+                                <div class="dropdown">
+                                    <a class="nav-link d-flex align-items-center" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <div class="position-relative">
+                                            <i class="bi bi-bell fs-5"></i>
+                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notificationBadge">
+                                                0
+                                            </span>
+                                        </div>
+                                        <i class="bi bi-chevron-down ms-1 small"></i>
                                     </a>
-                                </li>
-                                <li class="nav-item dropdown">
-                                    <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                                        <i class="bi bi-person-circle fs-4"></i>
+                                    <div class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationsDropdown">
+                                        <div class="dropdown-header d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0">Notifications</h6>
+                                            <a href="{% url 'dashboard:notifications' %}" class="small text-decoration-none">View All</a>
+                                        </div>
+                                        <div class="dropdown-divider"></div>
+                                        <div id="notificationList">
+                                            <div class="text-center py-3">
+                                                <div class="spinner-border text-primary" role="status">
+                                                    <span class="visually-hidden">Loading...</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="dropdown">
+                                    <a class="nav-link d-flex align-items-center gap-2" href="#" id="navbarUserDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        {% if user.user_profile.profile_photo %}
+                                            <img src="{{ user.user_profile.profile_photo.url }}" class="rounded-circle" width="32" height="32" alt="Profile Photo">
+                                        {% else %}
+                                            <i class="bi bi-person-circle fs-4"></i>
+                                        {% endif %}
+                                        <i class="bi bi-chevron-down small"></i>
                                     </a>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        <li><a class="dropdown-item" href="{% url 'dashboard:profile' %}">Profile</a></li>
-                                        <li><a class="dropdown-item" href="{% url 'dashboard:settings' %}">Settings</a></li>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="navbarUserDropdown">
+                                        <li class="dropdown-item-text">
+                                            <div class="d-flex align-items-center mb-2">
+                                                {% if user.user_profile.profile_photo %}
+                                                    <img src="{{ user.user_profile.profile_photo.url }}" class="rounded-circle me-2" width="48" height="48" alt="Profile Photo">
+                                                {% else %}
+                                                    <i class="bi bi-person-circle fs-1 me-2"></i>
+                                                {% endif %}
+                                                <div>
+                                                    <strong class="d-block">{{ user.get_full_name }}</strong>
+                                                    <span class="text-muted small">@{{ user.username }}</span>
+                                                </div>
+                                            </div>
+                                            <div class="small text-muted mb-2">{{ user.email }}</div>
+                                            <div class="small text-muted">Member since {{ user.date_joined|date:"F Y" }}</div>
+                                            {% if user.user_profile.role %}
+                                                <div class="small text-muted">{{ user.user_profile.role }}</div>
+                                            {% endif %}
+                                        </li>
                                         <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">Logout</a></li>
+                                        <li><a class="dropdown-item d-flex align-items-center" href="{% url 'accounts:profile_edit' %}">
+                                            <i class="bi bi-pencil-square me-2"></i>
+                                            <div>
+                                                <strong class="d-block">Edit Profile</strong>
+                                                <span class="small text-muted">Update your profile information</span>
+                                            </div>
+                                        </a></li>
+                                        <li><a class="dropdown-item d-flex align-items-center" href="{% url 'accounts:password_change' %}">
+                                            <i class="bi bi-key me-2"></i>
+                                            <div>
+                                                <strong class="d-block">Change Password</strong>
+                                                <span class="small text-muted">Update your password</span>
+                                            </div>
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item d-flex align-items-center text-danger" href="{% url 'accounts:logout' %}">
+                                            <i class="bi bi-box-arrow-right me-2"></i>
+                                            <div>
+                                                <strong class="d-block">Sign out</strong>
+                                                <span class="small">Log out of your account</span>
+                                            </div>
+                                        </a></li>
                                     </ul>
-                                </li>
-                            </ul>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </nav>
@@ -173,5 +415,111 @@
     <!-- Bootstrap 5 JS and Popper.js -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handle mobile dropdowns
+        const dropdowns = document.querySelectorAll('.dropdown-menu');
+        dropdowns.forEach(dropdown => {
+            if (window.innerWidth <= 768) {
+                // Create close button
+                const closeBtn = document.createElement('div');
+                closeBtn.className = 'position-absolute top-0 end-0 p-3';
+                closeBtn.innerHTML = '<button type="button" class="btn-close" aria-label="Close"></button>';
+                closeBtn.addEventListener('click', () => {
+                    const dropdownToggle = dropdown.previousElementSibling;
+                    if (dropdownToggle) {
+                        bootstrap.Dropdown.getInstance(dropdownToggle).hide();
+                    }
+                });
+                dropdown.insertBefore(closeBtn, dropdown.firstChild);
+            }
+        });
+    });
+    </script>
+    {% block extra_js %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Function to update notification count
+        function updateNotificationCount() {
+            fetch('{% url "dashboard:get_unread_count" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('notificationBadge');
+                    badge.textContent = data.count;
+                    badge.style.display = data.count > 0 ? 'inline' : 'none';
+                });
+        }
+
+        // Function to load latest notifications
+        function loadLatestNotifications() {
+            fetch('{% url "dashboard:get_latest_notifications" %}')
+                .then(response => response.json())
+                .then(data => {
+                    const notificationList = document.getElementById('notificationList');
+                    if (data.notifications.length === 0) {
+                        notificationList.innerHTML = `
+                            <div class="text-center py-3">
+                                <i class="bi bi-bell-slash text-muted mb-2"></i>
+                                <p class="text-muted mb-0">No new notifications</p>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    notificationList.innerHTML = data.notifications.map(notification => `
+                        <a class="dropdown-item notification-item ${notification.is_read ? '' : 'unread'}" 
+                           href="${notification.link || '#'}">
+                            <div class="d-flex align-items-center">
+                                <i class="${notification.icon} me-2"></i>
+                                <div class="flex-grow-1">
+                                    <p class="mb-1">${notification.message}</p>
+                                    <small class="text-muted">${new Date(notification.timestamp).toLocaleString()}</small>
+                                </div>
+                                ${!notification.is_read ? `
+                                    <button class="btn btn-sm btn-outline-primary mark-read" data-id="${notification.id}">
+                                        <i class="bi bi-check"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </a>
+                    `).join('');
+
+                    // Add event listeners to mark as read buttons
+                    document.querySelectorAll('.mark-read').forEach(button => {
+                        button.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const notificationId = this.dataset.id;
+                            fetch(`/dashboard/notifications/${notificationId}/mark-read/`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': '{{ csrf_token }}'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.status === 'success') {
+                                    updateNotificationCount();
+                                    loadLatestNotifications();
+                                }
+                            });
+                        });
+                    });
+                });
+        }
+
+        // Update notifications when dropdown is shown
+        document.getElementById('notificationsDropdown').addEventListener('shown.bs.dropdown', function() {
+            loadLatestNotifications();
+        });
+
+        // Initial load
+        updateNotificationCount();
+        loadLatestNotifications();
+
+        // Update notifications every 30 seconds
+        setInterval(updateNotificationCount, 30000);
+    });
+    </script>
+    {% endblock %}
 </body>
 </html> 
