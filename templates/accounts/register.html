@@ -2,8 +2,8 @@
 {% load static %}
 
 {% block content %}
-<div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);">
-    <div class="card p-4 shadow-lg" style="background-color: rgba(255, 255, 255, 0.95); width: 500px; margin-top:50px; margin-bottom:50px;">
+<div class="container-fluid min-vh-100 d-flex justify-content-center align-items-center" style="background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);">
+    <div class="card p-4 shadow" style="max-width: 450px; width: 100%; background-color: rgba(255, 255, 255, 0.95);">
         <h3 class="text-center mb-4">Create Your Account</h3>
         <p class="text-center text-muted mb-4">Please fill in all fields to register</p>
 
@@ -18,15 +18,15 @@
 
         <form method="post" novalidate class="needs-validation">
             {% csrf_token %}
-            <div class="row">
-                <div class="col-md-6 mb-3">
+            <div class="row g-3 mb-3">
+                <div class="col-sm-6">
                     <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
                     {{ form.first_name }}
                     {% if form.first_name.errors %}
                         <div class="text-danger">{{ form.first_name.errors|join:", " }}</div>
                     {% endif %}
                 </div>
-                <div class="col-md-6 mb-3">
+                <div class="col-sm-6">
                     <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
                     {{ form.last_name }}
                     {% if form.last_name.errors %}
@@ -89,6 +89,40 @@
 .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.form-control {
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    width: 100%;
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(26, 35, 126, 0.25);
+    border-color: #1a237e;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.form-text {
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.alert {
+    border-radius: 0.5rem;
+}
+
+@media (max-width: 576px) {
+    .card {
+        margin: 1rem;
+    }
+    .row.g-3 {
+        --bs-gutter-x: 1rem;
+    }
 }
 </style>
 {% endblock %}

@@ -2,7 +2,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
-from .models import TrainingModule, UserModuleProgress
+from .models import TrainingModule, UserModuleProgress, LearningPath
 import datetime
 
 # Create your views here.
@@ -148,3 +148,61 @@ def start_new_course(request):
         'title': 'Available Courses'
     }
     return render(request, 'modules/start_new_course.html', context)
+
+@login_required
+def learning_path_list(request):
+    learning_paths = LearningPath.objects.filter(is_active=True)
+    
+    # Calculate progress for each learning path
+    for path in learning_paths:
+        path.progress = path.get_progress(request.user)
+        
+        # Get the next available module
+        available_modules = path.modules.filter(is_active=True).order_by('order')
+        path.next_module = None
+        for module in available_modules:
+            if module.is_available_for_user(request.user):
+                progress = UserModuleProgress.objects.filter(
+                    user=request.user,
+                    module=module
+                ).first()
+                if not progress or not progress.is_completed:
+                    path.next_module = module
+                    break
+    
+    context = {
+        'learning_paths': learning_paths
+    }
+    return render(request, 'modules/learning_path_list.html', context)
+
+@login_required
+def learning_path_detail(request, path_id):
+    learning_path = get_object_or_404(LearningPath, id=path_id, is_active=True)
+    modules = learning_path.modules.filter(is_active=True).order_by('order')
+    
+    # Get user progress for all modules in this path
+    user_progress = {
+        progress.module_id: progress
+        for progress in UserModuleProgress.objects.filter(
+            user=request.user,
+            module__learning_path=learning_path
+        )
+    }
+    
+    # Calculate overall progress
+    total_progress = learning_path.get_progress(request.user)
+    
+    # Attach progress and availability information to each module
+    for module in modules:
+        if module.id in user_progress:
+            module.user_progress = user_progress[module.id]
+        else:
+            module.user_progress = None
+        module.is_available = module.is_available_for_user(request.user)
+    
+    context = {
+        'learning_path': learning_path,
+        'modules': modules,
+        'total_progress': total_progress
+    }
+    return render(request, 'modules/learning_path_detail.html', context)

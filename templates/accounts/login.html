@@ -1,38 +1,79 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
 
+{% block title %}Login{% endblock %}
+
 {% block content %}
-<div class="container-fluid min-vh-100 d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);">
-    <div class="card p-4 shadow-lg" style="background-color: rgba(255, 255, 255, 0.95); width: 400px; min-height: 500px; margin-top:50px; margin-bottom:50px;">
-        <h3 class="text-center mb-4">Secure Access to Cybersecurity Training</h3>
-        <p class="text-center text-muted mb-4">Please login to continue</p>
+<div class="container-fluid min-vh-100 d-flex justify-content-center align-items-center" style="background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);">
+    <div class="card shadow-lg" style="max-width: 450px; width: 100%; background-color: rgba(255, 255, 255, 0.95);">
+        <div class="card-body p-5">
+            <div class="text-center mb-4">
+                <i class="bi bi-shield-lock fs-1 text-primary"></i>
+                <h2 class="mt-2">Welcome Back</h2>
+                <p class="text-muted">Please login to your account</p>
+            </div>
 
-        {% if messages %}
-        <div class="alert {% if message.level == DEFAULT_MESSAGE_LEVELS.ERROR %}alert-danger{% elif message.level == DEFAULT_MESSAGE_LEVELS.SUCCESS %}alert-success{% else %}alert-info{% endif %} alert-dismissible fade show mb-4" role="alert">
             {% for message in messages %}
-                {{ message }}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show mb-4" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
             {% endfor %}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        {% endif %}
 
-        <form method="post" novalidate class="needs-validation">
-            {% csrf_token %}
-            <div class="mb-4">
-                <label for="{{ form.username.id_for_label }}" class="form-label">Username</label>
-                {{ form.username }}
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label for="id_username" class="form-label">Username</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.username.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3">
+                    <label for="id_password" class="form-label">Password</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.password.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mb-3 form-check">
+                    {{ form.remember_me }}
+                    <label class="form-check-label" for="id_remember_me">Remember me</label>
+                </div>
+
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors.0 }}
+                    </div>
+                {% endif %}
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-4 text-center">
+                <p class="mb-2">
+                    <a href="{% url 'accounts:password_reset' %}" class="text-decoration-none">
+                        <i class="bi bi-key me-1"></i>Forgot Password?
+                    </a>
+                </p>
+                <p class="mb-0">
+                    Don't have an account? 
+                    <a href="{% url 'accounts:register' %}" class="text-decoration-none">
+                        Register here
+                    </a>
+                </p>
             </div>
-
-            <div class="mb-4">
-                <label for="{{ form.password.id_for_label }}" class="form-label">Password</label>
-                {{ form.password }}
-            </div>
-
-            <button type="submit" class="btn btn-primary w-100 mb-3 py-2">Login</button>
-        </form>
-
-        <div class="mt-4 text-center">
-            <p class="mb-0">Don't have an account? <a href="{% url 'accounts:register' %}" class="text-primary">Register here</a></p>
         </div>
     </div>
 </div>
@@ -47,23 +88,31 @@
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
-.alert {
-    margin-bottom: 0;
-    font-size: 0.9rem;
-}
-.alert-danger {
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
-    color: #721c24;
-}
+
 .form-control {
-    border: 1px solid #ced4da;
+    border-radius: 0.5rem;
     padding: 0.75rem 1rem;
-    font-size: 0.9rem;
+    width: 100%;
 }
+
 .form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(26, 35, 126, 0.25);
     border-color: #1a237e;
-    box-shadow: 0 0 0 0.2rem rgba(26, 35, 126, 0.25);
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.alert {
+    border-radius: 0.5rem;
+}
+
+@media (max-width: 576px) {
+    .card {
+        margin: 1rem;
+    }
 }
 </style>
 {% endblock %}

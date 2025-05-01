@@ -1,6 +1,6 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from modules.models import UserModuleProgress, TrainingModule
+from modules.models import UserModuleProgress, TrainingModule, LearningPath
 from django.db.models import Sum, Count, F, ExpressionWrapper, DurationField
 from django.utils import timezone
 import datetime
@@ -9,7 +9,8 @@ from django.http import JsonResponse
 from django.db.models import Q
 from .models import Notification
 from django.core.paginator import Paginator
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
+from django.views.decorators.csrf import ensure_csrf_cookie
 import json
 
 class DashboardContextMixin:
@@ -67,7 +68,7 @@ def dashboard(request):
 
 @login_required
 def learning_path(request):
-    return render(request, 'dashboard/learning_path.html')
+    return redirect('modules:learning_path_list')
 
 @login_required
 def phishing(request):
@@ -98,59 +99,110 @@ def profile(request):
     return render(request, 'accounts/profile.html', context)
 
 @login_required
+@ensure_csrf_cookie
 def notifications(request):
-    # Get all notifications for the user
-    notifications_list = Notification.objects.filter(user=request.user)
-    
-    # Paginate notifications
-    paginator = Paginator(notifications_list, 10)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    context = {
-        'notifications': page_obj,
-        'unread_count': notifications_list.filter(is_read=False).count(),
-        'unread_notifications_count': notifications_list.filter(is_read=False).count()
-    }
-    return render(request, 'dashboard/notifications.html', context)
+    try:
+        # Get all notifications for the user
+        notifications_list = Notification.objects.filter(user=request.user)
+        
+        # Paginate notifications
+        paginator = Paginator(notifications_list, 10)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+        
+        context = {
+            'notifications': page_obj,
+            'unread_count': notifications_list.filter(is_read=False).count(),
+            'unread_notifications_count': notifications_list.filter(is_read=False).count()
+        }
+        return render(request, 'dashboard/notifications.html', context)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
 @require_POST
 def mark_notification_read(request, notification_id):
     try:
-        notification = Notification.objects.get(id=notification_id, user=request.user)
+        notification = get_object_or_404(Notification, id=notification_id, user=request.user)
         notification.is_read = True
         notification.save()
         return JsonResponse({'status': 'success'})
     except Notification.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Notification not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @login_required
 @require_POST
 def mark_all_read(request):
-    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
-    return JsonResponse({'status': 'success'})
+    try:
+        Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+        return JsonResponse({'status': 'success'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 @login_required
+@require_http_methods(["GET"])
 def get_unread_count(request):
-    count = Notification.objects.filter(user=request.user, is_read=False).count()
-    return JsonResponse({'count': count})
+    try:
+        count = Notification.objects.filter(user=request.user, is_read=False).count()
+        return JsonResponse({'count': count})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
+@require_http_methods(["GET"])
 def get_latest_notifications(request):
-    notifications = Notification.objects.filter(user=request.user).order_by('-timestamp')[:5]
-    data = [{
-        'id': n.id,
-        'message': n.message,
-        'type': n.type,
-        'is_read': n.is_read,
-        'timestamp': n.timestamp.isoformat(),
-        'link': n.link,
-        'icon': n.get_icon_class(),
-        'alert_class': n.get_alert_class(),
-    } for n in notifications]
-    return JsonResponse({'notifications': data})
+    try:
+        notifications = Notification.objects.filter(user=request.user).order_by('-timestamp')[:5]
+        data = [{
+            'id': n.id,
+            'message': n.message,
+            'type': n.type,
+            'is_read': n.is_read,
+            'timestamp': n.timestamp.isoformat(),
+            'link': n.link,
+            'icon': n.get_icon_class(),
+            'alert_class': n.get_alert_class(),
+        } for n in notifications]
+        return JsonResponse({'notifications': data})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
 def settings(request):
-    return render(request, 'dashboard/settings.html') 
+    return render(request, 'dashboard/settings.html')
+
+@login_required
+def search_view(request):
+    query = request.GET.get('q', '')
+    context = {'query': query}
+    
+    if query:
+        # Search in Training Modules
+        modules = TrainingModule.objects.filter(
+            Q(title__icontains=query) | 
+            Q(description__icontains=query) |
+            Q(difficulty__icontains=query)
+        )
+        
+        # Search in Learning Paths
+        paths = LearningPath.objects.filter(
+            Q(name__icontains=query) |
+            Q(description__icontains=query)
+        )
+        
+        # Search in Activity Logs
+        activities = UserActivityLog.objects.filter(
+            Q(activity_type__icontains=query) |
+            Q(details__icontains=query)
+        ).select_related('user')[:10]  # Limit to 10 most recent
+        
+        context.update({
+            'modules': modules,
+            'paths': paths,
+            'activities': activities,
+            'has_results': any([modules.exists(), paths.exists(), activities.exists()])
+        })
+    
+    return render(request, 'dashboard/search_results.html', context) 

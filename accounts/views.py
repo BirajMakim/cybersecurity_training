@@ -44,14 +44,29 @@ def register_view(request):
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
+            # Create the user
             user = form.save(commit=False)
-            user.is_active = True  # Set user as active immediately
+            user.is_active = False  # User is not active until email verification
             user.save()
             
-            # Log the user in directly after registration
-            login(request, user)
-            messages.success(request, f'Welcome {user.username}! Your account has been created successfully.')
-            return redirect('/dashboard/')
+            # Update or create the UserProfile
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            profile.first_name = form.cleaned_data['first_name']
+            profile.last_name = form.cleaned_data['last_name']
+            profile.email = form.cleaned_data['email']
+            profile.save()
+            
+            # Send activation email
+            send_activation_email(request, user, form.cleaned_data['email'])
+            
+            # Create a success message
+            messages.success(
+                request, 
+                'Please check your email to complete the registration process.'
+            )
+            
+            # Redirect to login page
+            return redirect('accounts:login')
     else:
         form = CustomUserCreationForm()
     return render(request, 'accounts/register.html', {'form': form})
@@ -66,6 +81,12 @@ def activate_account(request, uidb64, token):
     if user is not None and account_activation_token.check_token(user, token):
         user.is_active = True
         user.save()
+        
+        # Update the profile verification status
+        profile = user.user_profile
+        profile.email = user.email
+        profile.save()
+        
         messages.success(request, 'Your account has been activated successfully! You can now login.')
         return redirect('accounts:login')
     else:
@@ -82,6 +103,10 @@ def login_view(request):
             user = authenticate(username=username, password=password)
             
             if user is not None:
+                if not user.is_active:
+                    messages.error(request, 'Please verify your email address before logging in.')
+                    return redirect('accounts:login')
+                
                 login(request, user)
                 messages.success(request, f'Welcome back, {user.username}!')
                 return redirect('/dashboard/')

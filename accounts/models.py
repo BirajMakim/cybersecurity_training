@@ -24,13 +24,24 @@ class Profile(models.Model):
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
         Profile.objects.create(user=instance)
-        UserProfile.objects.create(user=instance)
+        # Create UserProfile with user data
+        UserProfile.objects.create(
+            user=instance,
+            first_name=instance.first_name,
+            last_name=instance.last_name,
+            email=instance.email
+        )
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
     instance.email_profile.save()
     if hasattr(instance, 'user_profile'):
-        instance.user_profile.save()
+        # Update UserProfile with latest user data
+        profile = instance.user_profile
+        profile.first_name = instance.first_name
+        profile.last_name = instance.last_name
+        profile.email = instance.email
+        profile.save()
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='user_profile')
