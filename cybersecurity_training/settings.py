@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     'quizzes',  # Your custom app for quizzes
     'django_browser_reload',  
     'dashboard',
+    'ckeditor',
 ]
 
 MIDDLEWARE = [
@@ -59,6 +60,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'django_browser_reload.middleware.BrowserReloadMiddleware',
 ]
 
 ROOT_URLCONF = 'cybersecurity_training.urls'
@@ -135,7 +137,7 @@ EMAIL_TIMEOUT = 30
 EMAIL_FROM = 'birajmakim802@gmail.com'
 EMAIL_HOST_USER = 'birajmakim802@gmail.com'
 # Generate a new App Password from Google Account settings and replace it here
-EMAIL_HOST_PASSWORD = ''  # Put your new 16-character app password here
+EMAIL_HOST_PASSWORD = 'uakmewgyfsi'  # Put your new 16-character app password here
 DEFAULT_FROM_EMAIL = 'birajmakim802@gmail.com'
 
 
@@ -164,7 +166,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Password Hashing Settings
 PASSWORD_HASHERS = [
-    'django.contrib.auth.hashers.Argon2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2PasswordHasher',
     'django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher',
     'django.contrib.auth.hashers.BCryptSHA256PasswordHasher',

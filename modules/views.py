@@ -2,133 +2,128 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
-from .models import TrainingModule, UserModuleProgress, LearningPath
+from django.db.models import Count
+from .models import TrainingModule, UserModuleProgress, LearningPath, Notification, ModuleContent, AssessmentQuestion, UserAssessment
 import datetime
+import re
 
 # Create your views here.
 
 @login_required
 def module_list(request):
-    # Get all active modules
-    modules = TrainingModule.objects.filter(is_active=True)
-    
-    # Get user's progress for all modules
-    user_progress = {
-        progress.module_id: progress
-        for progress in UserModuleProgress.objects.filter(user=request.user)
-    }
-    
-    # Attach progress information to each module
+    modules = TrainingModule.objects.all()
     for module in modules:
-        if module.id in user_progress:
-            module.user_progress = user_progress[module.id]
-        else:
-            module.user_progress = None
-
+        module.user_progress = UserModuleProgress.objects.filter(
+            user=request.user,
+            module=module
+        )
+    
+    # Get notifications for the user
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:10]
+    unread_count = notifications.filter(is_read=False).count()
+    recent_notifications = notifications[:5]
+    
     context = {
-        'modules': modules
+        'modules': modules,
+        'notifications': notifications,
+        'unread_count': unread_count,
+        'recent_notifications': recent_notifications,
     }
     return render(request, 'modules/module_list.html', context)
 
 @login_required
-def start_module(request, module_id):
-    module = get_object_or_404(TrainingModule, id=module_id, is_active=True)
+def start_module(request, slug):
+    module = get_object_or_404(TrainingModule, slug=slug)
     
-    # Check if user already has progress for this module
-    progress = UserModuleProgress.objects.filter(
-        user=request.user,
-        module=module
-    ).first()
-    
-    if progress:
-        # If progress exists, redirect to module detail
-        return redirect('modules:module_detail', module_id=module_id)
-    else:
-        # Create new progress record
-        progress = UserModuleProgress.objects.create(
-            user=request.user,
-            module=module,
-            completion_percentage=0,
-            is_completed=False,
-            started_at=timezone.now(),
-            last_accessed=timezone.now()
-        )
-        return redirect('modules:module_detail', module_id=module_id)
-
-@login_required
-def module_detail(request, module_id):
-    module = get_object_or_404(TrainingModule, id=module_id, is_active=True)
-    
-    # Get or create progress record
+    # Create or get user progress
     progress, created = UserModuleProgress.objects.get_or_create(
         user=request.user,
         module=module,
-        defaults={
-            'completion_percentage': 0,
-            'is_completed': False,
-            'started_at': timezone.now(),
-            'last_accessed': timezone.now()
-        }
+        defaults={'progress': 0, 'is_completed': False}
     )
     
-    # Update last accessed time and calculate time spent
-    if not created:
-        current_time = timezone.now()
-        time_diff = current_time - progress.last_accessed
-        
-        # Only update time spent if the difference is significant (e.g., more than 1 minute)
-        if time_diff.total_seconds() > 60:
-            progress.time_spent = (progress.time_spent or datetime.timedelta()) + time_diff
-            progress.last_accessed = current_time
-            progress.save()
-    
-    context = {
-        'module': module,
-        'progress': progress
-    }
-    return render(request, 'modules/module_detail.html', context)
+    if created:
+        # Notification will be created via signal
+        return redirect('modules:module_detail', slug=slug)
+    else:
+        return redirect('modules:resume_module', slug=slug)
 
 @login_required
-def update_progress(request, module_id):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-        
-    module = get_object_or_404(TrainingModule, id=module_id, is_active=True)
-    progress = get_object_or_404(UserModuleProgress, user=request.user, module=module)
+def resume_module(request, slug):
+    module = get_object_or_404(TrainingModule, slug=slug)
+    progress = get_object_or_404(
+        UserModuleProgress,
+        user=request.user,
+        module=module
+    )
     
-    try:
-        new_percentage = int(request.POST.get('percentage', 0))
-        if 0 <= new_percentage <= 100:
-            progress.completion_percentage = new_percentage
-            
-            # Update completion status
-            if new_percentage == 100 and not progress.is_completed:
-                progress.is_completed = True
-                progress.completed_at = timezone.now()
-            
-            # Update time spent
-            current_time = timezone.now()
-            time_diff = current_time - progress.last_accessed
-            if time_diff.total_seconds() > 60:  # Only update if more than 1 minute
-                progress.time_spent = (progress.time_spent or datetime.timedelta()) + time_diff
-                progress.last_accessed = current_time
-            
-            progress.save()
-            return JsonResponse({
-                'success': True,
-                'percentage': progress.completion_percentage,
-                'is_completed': progress.is_completed,
-                'time_spent': str(progress.time_spent)
-            })
-    except ValueError:
-        pass
+    # Update last accessed time
+    progress.last_accessed = timezone.now()
+    progress.save()
+    
+    return redirect('modules:module_detail', slug=slug)
+
+@login_required
+def update_progress(request, slug):
+    if request.method == 'POST':
+        module = get_object_or_404(TrainingModule, slug=slug)
+        progress = get_object_or_404(
+            UserModuleProgress,
+            user=request.user,
+            module=module
+        )
         
-    return JsonResponse({'error': 'Invalid percentage value'}, status=400)
+        try:
+            new_progress = int(request.POST.get('progress', 0))
+            if 0 <= new_progress <= 100:
+                progress.progress = new_progress
+                if new_progress == 100:
+                    progress.is_completed = True
+                    progress.completed_at = timezone.now()
+                progress.save()
+                return JsonResponse({'success': True})
+        except ValueError:
+            pass
+        
+        return JsonResponse({'success': False, 'error': 'Invalid progress value'})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+@login_required
+def mark_notification_read(request, notification_id):
+    if request.method == 'POST':
+        notification = get_object_or_404(
+            Notification,
+            id=notification_id,
+            user=request.user
+        )
+        notification.is_read = True
+        notification.save()
+        return JsonResponse({'success': True})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'})
+
+@login_required
+def get_notifications(request):
+    notifications = Notification.objects.filter(
+        user=request.user
+    ).order_by('-created_at')[:10]
+    
+    unread_count = notifications.filter(is_read=False).count()
+    recent_notifications = notifications[:5]
+    
+    context = {
+        'notifications': notifications,
+        'unread_count': unread_count,
+        'recent_notifications': recent_notifications,
+    }
+    
+    return render(request, 'modules/notifications_panel.html', context)
 
 @login_required
 def start_new_course(request):
-    # Get all active modules
-    modules = TrainingModule.objects.filter(is_active=True).order_by('order', 'title')
+    # Get all modules
+    modules = TrainingModule.objects.all().order_by('title')
     
     # Get user's progress for all modules
     user_progress = {
@@ -136,12 +131,9 @@ def start_new_course(request):
         for progress in UserModuleProgress.objects.filter(user=request.user)
     }
     
-    # Attach progress information to each module
+    # Attach progress information to each module (custom attribute)
     for module in modules:
-        if module.id in user_progress:
-            module.user_progress = user_progress[module.id]
-        else:
-            module.user_progress = None
+        module.current_user_progress = user_progress.get(module.id)
     
     context = {
         'modules': modules,
@@ -206,3 +198,76 @@ def learning_path_detail(request, path_id):
         'total_progress': total_progress
     }
     return render(request, 'modules/learning_path_detail.html', context)
+
+def get_youtube_embed_url(url):
+    # Handle watch?v= and youtu.be/ and strip extra params
+    if 'youtube.com/watch?v=' in url:
+        video_id = url.split('watch?v=')[1].split('&')[0]
+    elif 'youtu.be/' in url:
+        video_id = url.split('youtu.be/')[1].split('?')[0]
+    else:
+        return ''
+    return f'https://www.youtube.com/embed/{video_id}'
+
+@login_required
+def module_detail(request, slug):
+    module = get_object_or_404(TrainingModule, slug=slug)
+    contents = module.contents.all()
+    # Add embed URL for YouTube and prepare external links list
+    for c in contents:
+        if c.youtube_url:
+            c.youtube_embed_url = get_youtube_embed_url(c.youtube_url)
+        else:
+            c.youtube_embed_url = ''
+        if c.external_links:
+            c.external_links_list = [link.strip() for link in c.external_links.split(',') if link.strip()]
+        else:
+            c.external_links_list = []
+    user_progress, _ = UserModuleProgress.objects.get_or_create(user=request.user, module=module)
+    return render(request, 'modules/module_detail.html', {
+        'module': module,
+        'contents': contents,
+        'user_progress': user_progress,
+    })
+
+@login_required
+def module_quiz(request, slug):
+    module = get_object_or_404(TrainingModule, slug=slug)
+    questions = module.questions.all()
+    user_progress, _ = UserModuleProgress.objects.get_or_create(user=request.user, module=module)
+
+    if request.method == 'POST':
+        answers = {q.id: request.POST.get(f'q{q.id}') for q in questions}
+        score = 0
+        for q in questions:
+            if answers[q.id] == q.correct_option:
+                score += 1
+        percent = int((score / questions.count()) * 100) if questions else 0
+        passed = percent >= 60  # Pass threshold
+
+        # Store assessment
+        UserAssessment.objects.create(
+            user=request.user,
+            module=module,
+            score=percent,
+            passed=passed
+        )
+        # Update progress
+        user_progress.progress = 100
+        user_progress.is_completed = True
+        user_progress.completed_at = timezone.now()
+        user_progress.save()
+
+        return render(request, 'modules/quiz_result.html', {
+            'module': module,
+            'score': percent,
+            'passed': passed,
+            'total': questions.count(),
+            'correct': score,
+        })
+
+    return render(request, 'modules/module_quiz.html', {
+        'module': module,
+        'questions': questions,
+        'user_progress': user_progress,
+    })

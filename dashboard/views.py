@@ -12,6 +12,9 @@ from django.core.paginator import Paginator
 from django.views.decorators.http import require_POST, require_http_methods
 from django.views.decorators.csrf import ensure_csrf_cookie
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DashboardContextMixin:
     """Mixin to add common context data to dashboard views"""
@@ -29,42 +32,63 @@ def profile_redirect(request):
 
 @login_required
 def dashboard(request):
-    user = request.user
-    profile = user.user_profile
-    
-    # Get progress statistics
-    completed_modules = user.module_progress.filter(is_completed=True).count()
-    total_modules = user.module_progress.count()
-    total_progress = (completed_modules / total_modules * 100) if total_modules > 0 else 0
-    
-    # Calculate total time spent
-    total_time_spent = user.module_progress.aggregate(
-        total_time=Sum('time_spent')
-    )['total_time'] or datetime.timedelta()
-    
-    # Convert timedelta to hours
-    total_hours = round(total_time_spent.total_seconds() / 3600, 1)
-    
-    # Get current courses (in-progress modules)
-    current_courses = user.module_progress.filter(
-        is_completed=False,
-        completion_percentage__gt=0
-    ).select_related('module').order_by('-last_accessed')
-    
-    # Get recent activity
-    recent_activity = user.module_progress.order_by('-last_accessed')[:5]
-    
-    context = {
-        'user': user,
-        'profile': profile,
-        'completed_modules': completed_modules,
-        'total_progress': round(total_progress, 1),
-        'total_hours': total_hours,
-        'current_courses': current_courses,
-        'recent_activity': recent_activity,
-        'unread_notifications_count': Notification.objects.filter(user=user, is_read=False).count()
-    }
-    return render(request, 'dashboard/index.html', context)
+    try:
+        user = request.user
+        
+        # Get or create user profile
+        profile, created = UserProfile.objects.get_or_create(
+            user=user,
+            defaults={
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'email': user.email
+            }
+        )
+        
+        # Get progress statistics
+        total_modules = TrainingModule.objects.all().count()
+        if total_modules > 0:
+            completed_modules = UserModuleProgress.objects.filter(
+                user=user,
+                is_completed=True
+            ).count()
+            total_progress = (completed_modules / total_modules * 100)
+        else:
+            completed_modules = 0
+            total_progress = 0
+        
+        # Get current courses (in-progress modules)
+        current_courses = UserModuleProgress.objects.filter(
+            user=user,
+            is_completed=False,
+            progress__gt=0
+        ).select_related('module').order_by('-last_accessed')
+        
+        # Get recent activity
+        recent_activity = UserModuleProgress.objects.filter(
+            user=user
+        ).select_related('module').order_by('-last_accessed')[:5]
+        
+        context = {
+            'user': user,
+            'profile': profile,
+            'completed_modules': completed_modules,
+            'total_progress': round(total_progress, 1),
+            'current_courses': current_courses,
+            'recent_activity': recent_activity,
+            'unread_notifications_count': Notification.objects.filter(
+                user=user,
+                is_read=False
+            ).count()
+        }
+        return render(request, 'dashboard/index.html', context)
+        
+    except Exception as e:
+        logger.error(f"Error in dashboard view: {str(e)}")
+        context = {
+            'error_message': "An error occurred while loading the dashboard. Please try again later."
+        }
+        return render(request, 'dashboard/error.html', context)
 
 @login_required
 def learning_path(request):

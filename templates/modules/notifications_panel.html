@@ -1,0 +1,137 @@
+{% load static %}
+
+<div class="offcanvas offcanvas-start" tabindex="-1" id="notificationsPanel" aria-labelledby="notificationsPanelLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="notificationsPanelLabel">
+            <i class="bi bi-bell me-2"></i>Notifications
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="notifications-list">
+            {% for notification in notifications %}
+            <div class="notification-item p-3 border-bottom {% if not notification.is_read %}bg-light{% endif %}"
+                 data-notification-id="{{ notification.id }}">
+                <div class="d-flex align-items-start">
+                    <div class="flex-grow-1">
+                        <p class="mb-1">{{ notification.message }}</p>
+                        <small class="text-muted">
+                            <i class="bi bi-clock me-1"></i>
+                            {{ notification.created_at|timesince }} ago
+                        </small>
+                    </div>
+                    {% if not notification.is_read %}
+                    <button class="btn btn-link btn-sm mark-read" data-notification-id="{{ notification.id }}">
+                        <i class="bi bi-check2-all"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-bell-slash display-4"></i>
+                <p class="mt-2">No notifications yet</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Notification Dropdown in Navbar -->
+<div class="dropdown">
+    <button class="btn btn-link nav-link position-relative" type="button" id="notificationDropdown" 
+            data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="bi bi-bell"></i>
+        {% if unread_count > 0 %}
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+            {{ unread_count }}
+        </span>
+        {% endif %}
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="notificationDropdown">
+        <li><h6 class="dropdown-header">Recent Notifications</h6></li>
+        {% for notification in recent_notifications %}
+        <li>
+            <a class="dropdown-item {% if not notification.is_read %}fw-bold{% endif %}" href="#">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1">
+                        <p class="mb-0">{{ notification.message }}</p>
+                        <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+                    </div>
+                    {% if not notification.is_read %}
+                    <button class="btn btn-link btn-sm mark-read" data-notification-id="{{ notification.id }}">
+                        <i class="bi bi-check2-all"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </a>
+        </li>
+        {% empty %}
+        <li><span class="dropdown-item-text text-muted">No notifications</span></li>
+        {% endfor %}
+        <li><hr class="dropdown-divider"></li>
+        <li>
+            <a class="dropdown-item text-center" href="#" data-bs-toggle="offcanvas" 
+               data-bs-target="#notificationsPanel">
+                View All Notifications
+            </a>
+        </li>
+    </ul>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Mark notification as read
+    document.querySelectorAll('.mark-read').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            const notificationId = this.dataset.notificationId;
+            
+            fetch(`/modules/notifications/${notificationId}/mark-read/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const notificationItem = this.closest('.notification-item');
+                    notificationItem.classList.remove('bg-light');
+                    this.remove();
+                    
+                    // Update unread count
+                    const badge = document.querySelector('.badge');
+                    if (badge) {
+                        const count = parseInt(badge.textContent) - 1;
+                        if (count > 0) {
+                            badge.textContent = count;
+                        } else {
+                            badge.remove();
+                        }
+                    }
+                }
+            });
+        });
+    });
+    
+    // Helper function to get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %} 

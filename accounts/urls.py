@@ -6,7 +6,7 @@ app_name = 'accounts'
 
 urlpatterns = [
     path('register/', views.register_view, name='register'),
-    path('activate/<uidb64>/<token>/', views.activate_account, name='activate'),
+    path('activate/<str:uidb64>/<str:token>/', views.activate_account, name='activate'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('profile/', views.profile_view, name='profile'),
@@ -32,7 +32,7 @@ urlpatterns = [
              template_name='accounts/password_reset_done.html'
          ), 
          name='password_reset_done'),
-    path('password/reset/confirm/<uidb64>/<token>/', 
+    path('password/reset/confirm/<str:uidb64>/<str:token>/', 
          auth_views.PasswordResetConfirmView.as_view(
              template_name='accounts/password_reset_confirm.html',
              success_url='/accounts/password/reset/complete/'
@@ -43,4 +43,6 @@ urlpatterns = [
              template_name='accounts/password_reset_complete.html'
          ), 
          name='password_reset_complete'),
+    path('password-reset/', views.password_reset_request, name='password_reset'),
+    path('password-reset/<str:uidb64>/<str:token>/', views.password_reset_confirm, name='password_reset_confirm'),
 ]

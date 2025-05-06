@@ -17,12 +17,12 @@
                     <!-- Header -->
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-primary bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-{{ module.icon_name }} text-primary fs-4"></i>
+                            <i class="bi {{ module.icon }} text-primary fs-4"></i>
                         </div>
                         <div class="ms-3">
                             <h5 class="card-title mb-0">{{ module.title }}</h5>
                             <span class="badge bg-{{ module.difficulty }}">
-                                {{ module.get_difficulty_display }}
+                                {{ module.difficulty|title }}
                             </span>
                         </div>
                     </div>
@@ -36,23 +36,23 @@
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <small class="text-muted">
                                 <i class="bi bi-clock me-1"></i>
-                                {{ module.estimated_duration }} minutes
+                                {{ module.duration }} minutes
                             </small>
-                            {% if module.user_progress and not module.user_progress.is_completed %}
+                            {% if module.current_user_progress and not module.current_user_progress.is_completed %}
                             <small class="text-muted">
-                                {{ module.user_progress.completion_percentage }}% complete
+                                {{ module.current_user_progress.progress }}% complete
                             </small>
                             {% endif %}
                         </div>
 
                         <!-- Progress Bar -->
-                        {% if module.user_progress and not module.user_progress.is_completed %}
+                        {% if module.current_user_progress and not module.current_user_progress.is_completed %}
                         <div class="progress mb-3" style="height: 5px;">
-                            <div class="progress-bar {% if module.user_progress.completion_percentage >= 75 %}bg-success{% elif module.user_progress.completion_percentage >= 50 %}bg-warning{% else %}bg-primary{% endif %}" 
-                                 role="progressbar" 
-                                 style="width: {{ module.user_progress.completion_percentage }}%" 
-                                 aria-valuenow="{{ module.user_progress.completion_percentage }}" 
-                                 aria-valuemin="0" 
+                            <div class="progress-bar {% if module.current_user_progress.progress >= 75 %}bg-success{% elif module.current_user_progress.progress >= 50 %}bg-warning{% else %}bg-primary{% endif %}"
+                                 role="progressbar"
+                                 style="width: {{ module.current_user_progress.progress }}%"
+                                 aria-valuenow="{{ module.current_user_progress.progress }}"
+                                 aria-valuemin="0"
                                  aria-valuemax="100">
                             </div>
                         </div>
@@ -60,18 +60,18 @@
 
                         <!-- Action Button -->
                         <div class="text-end">
-                            {% if module.user_progress %}
-                                {% if module.user_progress.is_completed %}
-                                    <a href="{% url 'modules:module_detail' module.id %}" class="btn btn-success">
-                                        <i class="bi bi-check-circle me-2"></i>Completed
+                            {% if module.current_user_progress %}
+                                {% if module.current_user_progress.is_completed %}
+                                    <a href="{% url 'modules:module_detail' module.slug %}" class="btn btn-outline-success">
+                                        <i class="bi bi-arrow-repeat me-2"></i>Review / Retake
                                     </a>
                                 {% else %}
-                                    <a href="{% url 'modules:module_detail' module.id %}" class="btn btn-primary">
+                                    <a href="{% url 'modules:resume_module' module.slug %}" class="btn btn-primary">
                                         <i class="bi bi-arrow-right-circle me-2"></i>Continue
                                     </a>
                                 {% endif %}
                             {% else %}
-                                <a href="{% url 'modules:start_module' module.id %}" class="btn btn-primary">
+                                <a href="{% url 'modules:start_module' module.slug %}" class="btn btn-primary">
                                     <i class="bi bi-play-fill me-2"></i>Start Module
                                 </a>
                             {% endif %}

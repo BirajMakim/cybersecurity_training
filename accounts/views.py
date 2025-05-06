@@ -24,6 +24,7 @@ from .tokens import account_activation_token
 import json
 from datetime import datetime
 from dashboard.utils import create_user_notification
+from django.urls import reverse
 
 def send_activation_email(request, user, to_email):
     mail_subject = "Activate your account"
@@ -75,21 +76,30 @@ def activate_account(request, uidb64, token):
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
         user = User.objects.get(pk=uid)
+        print(f"Found user: {user.username}, is_active: {user.is_active}")
     except (TypeError, ValueError, OverflowError, User.DoesNotExist):
         user = None
+        print("User not found or invalid uid")
 
     if user is not None and account_activation_token.check_token(user, token):
+        print(f"Token is valid for user: {user.username}")
         user.is_active = True
         user.save()
+        print(f"User activated: {user.username}, is_active: {user.is_active}")
         
         # Update the profile verification status
-        profile = user.user_profile
-        profile.email = user.email
-        profile.save()
+        try:
+            profile = user.user_profile
+            profile.email = user.email
+            profile.save()
+            print(f"Profile updated for user: {user.username}")
+        except Exception as e:
+            print(f"Error updating profile: {str(e)}")
         
         messages.success(request, 'Your account has been activated successfully! You can now login.')
         return redirect('accounts:login')
     else:
+        print(f"Token validation failed for user: {user.username if user else 'None'}")
         messages.error(request, 'The confirmation link was invalid or has expired.')
         return redirect('accounts:register')
 
@@ -99,21 +109,30 @@ def login_view(request):
         username = request.POST.get('username')
         password = request.POST.get('password')
         
+        print(f"Login attempt for username: {username}")
+        
         if form.is_valid():
+            print("Form is valid")
             user = authenticate(username=username, password=password)
+            print(f"Authentication result: {user is not None}")
             
             if user is not None:
+                print(f"User found: {user.username}, is_active: {user.is_active}")
                 if not user.is_active:
+                    print(f"User {user.username} is not active")
                     messages.error(request, 'Please verify your email address before logging in.')
                     return redirect('accounts:login')
                 
                 login(request, user)
+                print(f"User {user.username} logged in successfully")
                 messages.success(request, f'Welcome back, {user.username}!')
                 return redirect('/dashboard/')
             else:
+                print(f"Authentication failed for user: {username}")
                 messages.error(request, 'Invalid username or password. Please try again.')
                 return redirect('accounts:login')
         else:
+            print(f"Form validation failed: {form.errors}")
             messages.error(request, 'Invalid username or password. Please try again.')
             return redirect('accounts:login')
     else:
@@ -386,3 +405,81 @@ def password_change(request):
         form = CustomPasswordChangeForm(request.user)
     
     return render(request, 'accounts/password_change.html', {'form': form})
+
+def password_reset_request(request):
+    if request.method == "POST":
+        email = request.POST.get("email")
+        try:
+            user = User.objects.get(email=email)
+            if user.is_active:
+                # Generate password reset token
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                
+                # Create reset link
+                reset_link = request.build_absolute_uri(
+                    reverse('accounts:password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
+                )
+                
+                # Send email
+                subject = "Password Reset Request"
+                message = f"""
+                Hello {user.username},
+                
+                You're receiving this email because you requested a password reset for your account.
+                
+                Please go to the following page and choose a new password:
+                {reset_link}
+                
+                If you didn't request this, please ignore this email.
+                
+                Best regards,
+                The {settings.SITE_NAME} Team
+                """
+                
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+                
+                messages.success(request, 'Password reset email has been sent. Please check your inbox.')
+                return redirect('accounts:login')
+            else:
+                messages.error(request, 'Your account is not active. Please verify your email first.')
+                return redirect('accounts:login')
+        except User.DoesNotExist:
+            messages.error(request, 'No user found with that email address.')
+            return redirect('accounts:password_reset')
+    
+    return render(request, 'accounts/password_reset.html')
+
+def password_reset_confirm(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+    
+    if user is not None and default_token_generator.check_token(user, token):
+        if request.method == "POST":
+            password = request.POST.get("password")
+            password2 = request.POST.get("password2")
+            
+            if password != password2:
+                messages.error(request, "Passwords don't match.")
+                return render(request, 'accounts/password_reset_confirm.html')
+            
+            # Set new password
+            user.set_password(password)
+            user.save()
+            
+            messages.success(request, 'Your password has been reset successfully. You can now login.')
+            return redirect('accounts:login')
+        
+        return render(request, 'accounts/password_reset_confirm.html')
+    else:
+        messages.error(request, 'The password reset link is invalid or has expired.')
+        return redirect('accounts:password_reset')

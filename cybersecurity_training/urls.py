@@ -26,5 +26,6 @@ urlpatterns = [
     path('dashboard/', include('dashboard.urls')),
     path('modules/', include('modules.urls', namespace='modules')),  # Include modules app URLs with namespace
     path('', RedirectView.as_view(url='/accounts/login/', permanent=False)),  # Redirect root to login
+    path("__reload__/", include("django_browser_reload.urls")),  # Add browser reload URLs
 ]
 

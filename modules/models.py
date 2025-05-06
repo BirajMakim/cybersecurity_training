@@ -1,10 +1,15 @@
-from django.db import models
-from django.contrib.auth.models import User
+﻿from django.db import models
+from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.db.models import Max
+from django.utils.text import slugify
+from django.contrib.postgres.fields import JSONField
+from ckeditor.fields import RichTextField
+
+User = get_user_model()
 
 # Create your models here.
 
@@ -65,19 +70,17 @@ class LearningPath(models.Model):
 
 class TrainingModule(models.Model):
     DIFFICULTY_CHOICES = [
-        ('basic', 'Basic'),
+        ('beginner', 'Beginner'),
         ('intermediate', 'Intermediate'),
         ('advanced', 'Advanced'),
     ]
 
     title = models.CharField(max_length=200)
     description = models.TextField()
-    content = models.TextField(help_text="Module content in HTML format", null=True, blank=True)
-    estimated_duration = models.IntegerField(help_text="Duration in minutes")
-    difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES, default='basic')
-    icon_name = models.CharField(max_length=50, help_text="Bootstrap icon name (e.g., 'shield-lock')", default='book')
-    order = models.IntegerField(default=0, help_text="Order in which the module appears in its learning path")
-    is_active = models.BooleanField(default=True)
+    duration = models.IntegerField(help_text="Duration in minutes")
+    difficulty = models.CharField(max_length=20, choices=DIFFICULTY_CHOICES)
+    slug = models.SlugField(unique=True, blank=True)
+    icon = models.CharField(max_length=50, blank=True, help_text="Bootstrap icon class or image URL")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     learning_path = models.ForeignKey(
@@ -99,13 +102,18 @@ class TrainingModule(models.Model):
         help_text="Bootstrap icon name for completion badge"
     )
 
-    class Meta:
-        ordering = ['learning_path', 'order', 'title']
-        verbose_name = "Training Module"
-        verbose_name_plural = "Training Modules"
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            self.slug = slugify(self.title)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.title
+
+    @property
+    def content(self):
+        """Get the combined content of all module sections"""
+        return "\n\n".join(section.content for section in self.contents.all().order_by('order'))
 
     def is_available_for_user(self, user):
         """Check if this module is available for the user"""
@@ -160,16 +168,16 @@ def update_module_order(sender, instance, created, **kwargs):
 
 class UserModuleProgress(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='module_progress')
-    module = models.ForeignKey(TrainingModule, on_delete=models.CASCADE)
-    completion_percentage = models.IntegerField(
+    module = models.ForeignKey(TrainingModule, on_delete=models.CASCADE, related_name='user_progress')
+    progress = models.IntegerField(
         default=0,
-        validators=[MinValueValidator(0), MaxValueValidator(100)]
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        help_text="Progress percentage (0-100)"
     )
     is_completed = models.BooleanField(default=False)
-    started_at = models.DateTimeField(auto_now_add=True)
     last_accessed = models.DateTimeField(auto_now=True)
+    started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
-    time_spent = models.DurationField(null=True, blank=True)
 
     class Meta:
         unique_together = ['user', 'module']
@@ -178,10 +186,60 @@ class UserModuleProgress(models.Model):
         verbose_name_plural = "User Module Progress Records"
 
     def __str__(self):
-        return f"{self.user.username} - {self.module.title} ({self.completion_percentage}%)"
+        return f"{self.user.username} - {self.module.title} ({self.progress}%)"
 
     def save(self, *args, **kwargs):
-        if self.completion_percentage == 100 and not self.is_completed:
+        if self.progress == 100 and not self.is_completed:
             self.is_completed = True
             self.completed_at = timezone.now()
         super().save(*args, **kwargs)
+
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='module_notifications')
+    module = models.ForeignKey(TrainingModule, on_delete=models.CASCADE, related_name='notifications')
+    message = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Notification for {self.user.username}: {self.message[:50]}"
+
+class ModuleContent(models.Model):
+    module = models.ForeignKey(TrainingModule, on_delete=models.CASCADE, related_name='contents')
+    text = RichTextField(help_text='Learning material (rich text, HTML allowed)')
+    youtube_url = models.URLField(blank=True, null=True, help_text='YouTube video URL (optional)')
+    external_links = models.TextField(blank=True, help_text='Comma-separated URLs for external resources (optional)')
+    order = models.PositiveIntegerField(default=1, help_text='Order of content sections')
+
+    class Meta:
+        ordering = ['order']
+        verbose_name = 'Module Content'
+        verbose_name_plural = 'Module Contents'
+
+    def __str__(self):
+        return f"{self.module.title} - Section {self.order}"
+
+class AssessmentQuestion(models.Model):
+    module = models.ForeignKey(TrainingModule, on_delete=models.CASCADE, related_name='questions')
+    question = models.TextField()
+    option_a = models.CharField(max_length=255)
+    option_b = models.CharField(max_length=255)
+    option_c = models.CharField(max_length=255)
+    option_d = models.CharField(max_length=255)
+    correct_option = models.CharField(max_length=1, choices=[('A','A'),('B','B'),('C','C'),('D','D')])
+
+    def __str__(self):
+        return f"{self.module.title} - {self.question[:40]}..."
+
+class UserAssessment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assessments')
+    module = models.ForeignKey(TrainingModule, on_delete=models.CASCADE, related_name='user_assessments')
+    score = models.PositiveIntegerField()
+    passed = models.BooleanField(default=False)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.module.title} - {self.score} pts"
