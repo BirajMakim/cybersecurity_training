@@ -63,7 +63,7 @@
                     </div>
                     <div>
                         <h6 class="mb-1">Hours Spent</h6>
-                        <h4 class="mb-0">{{ hours_spent }}</h4>
+                        <h4 class="mb-0" id="hoursSpentValue">{{ hours_spent }}</h4>
                     </div>
                 </div>
             </div>
@@ -86,12 +86,18 @@
                             <div>
                                 <h6 class="mb-1">{{ course.module.title }}</h6>
                                 <div class="progress" style="height: 5px; width: 200px;">
-                                    <div class="progress-bar {% if course.completion_percentage >= 75 %}bg-success{% elif course.completion_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
-                                         style="width: {{ course.completion_percentage }}%"></div>
+                                    <div class="progress-bar {% if course.progress >= 75 %}bg-success{% elif course.progress >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                                         id="dashboard-progress-bar-{{ course.module.id }}"
+                                         role="progressbar"
+                                         style="width: {{ course.progress }}%"
+                                         aria-valuenow="{{ course.progress }}"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100"></div>
                                 </div>
+                                <span id="dashboard-progress-value-{{ course.module.id }}">{{ course.progress }}</span>%
                             </div>
-                            <span class="badge {% if course.completion_percentage >= 75 %}bg-success{% elif course.completion_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
-                                {{ course.completion_percentage }}% Complete
+                            <span class="badge {% if course.progress >= 75 %}bg-success{% elif course.progress >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                {{ course.progress }}% Complete
                             </span>
                         </div>
                     </div>
@@ -123,12 +129,12 @@
                                     {% if activity.is_completed %}
                                     Completed Module: {{ activity.module.title }}
                                     {% else %}
-                                    Progress in {{ activity.module.title }}: {{ activity.completion_percentage }}%
+                                    Progress in {{ activity.module.title }}
                                     {% endif %}
                                 </h6>
                                 <small class="text-muted">
                                     {% if activity.is_completed %}
-                                    Score: {{ activity.completion_percentage }}%
+                                    Score
                                     {% else %}
                                     Last updated: {{ activity.last_accessed|timesince }} ago
                                     {% endif %}
@@ -152,26 +158,82 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Update progress every 30 seconds
+    // WebSocket for real-time dashboard updates
+    let ws_scheme = window.location.protocol === "https:" ? "wss" : "ws";
+    let ws_path = ws_scheme + '://' + window.location.host + "/ws/dashboard/";
+    let dashboardSocket = new WebSocket(ws_path);
+
+    dashboardSocket.onmessage = function(e) {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'dashboard_update' && msg.data && msg.data.active_modules) {
+            msg.data.active_modules.forEach(function(module) {
+                let bar = document.getElementById('dashboard-progress-bar-' + module.id);
+                let value = document.getElementById('dashboard-progress-value-' + module.id);
+                if (bar) {
+                    bar.style.width = module.progress + '%';
+                    bar.setAttribute('aria-valuenow', module.progress);
+                }
+                if (value) {
+                    value.textContent = module.progress;
+                }
+            });
+        }
+    };
+
+    // --- Existing timer and polling code below ---
     setInterval(function() {
         fetch('/dashboard/')
             .then(response => response.text())
             .then(html => {
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, 'text/html');
-                
-                // Update progress values
                 document.querySelector('.progress-bar').style.width = doc.querySelector('.progress-bar').style.width;
                 document.querySelector('.progress-bar').setAttribute('aria-valuenow', 
                     doc.querySelector('.progress-bar').getAttribute('aria-valuenow'));
-                
-                // Update other statistics
                 document.querySelectorAll('.card-body h4').forEach((el, index) => {
                     const newValue = doc.querySelectorAll('.card-body h4')[index].textContent;
                     el.textContent = newValue;
                 });
             });
     }, 30000);
+
+    // --- Hours Spent Timer with Pause/Resume ---
+    let hoursSpentElem = document.getElementById('hoursSpentValue');
+    let hoursSpent = parseFloat(hoursSpentElem.textContent);
+    let timer = null;
+    let lastTick = null;
+
+    function startTimer() {
+        if (!timer) {
+            lastTick = Date.now();
+            timer = setInterval(() => {
+                const now = Date.now();
+                const delta = (now - lastTick) / (1000 * 60 * 60); // hours
+                hoursSpent += delta;
+                lastTick = now;
+                hoursSpentElem.textContent = hoursSpent.toFixed(2);
+            }, 1000);
+        }
+    }
+
+    function stopTimer() {
+        if (timer) {
+            clearInterval(timer);
+            timer = null;
+        }
+    }
+
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            startTimer();
+        } else {
+            stopTimer();
+        }
+    });
+
+    if (document.visibilityState === 'visible') {
+        startTimer();
+    }
 });
 </script>
 {% endblock %} 

@@ -10,9 +10,9 @@
     <div class="row mb-3">
         <div class="col-12">
             <div class="progress" style="height: 8px;">
-                <div class="progress-bar bg-primary" role="progressbar" style="width: {{ user_progress.progress }}%" aria-valuenow="{{ user_progress.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
+                <div class="progress-bar bg-primary" id="moduleProgressBar" role="progressbar" style="width: {{ user_progress.progress }}%" aria-valuenow="{{ user_progress.progress }}" aria-valuemin="0" aria-valuemax="100"></div>
             </div>
-            <div class="text-end small text-muted mt-1">Progress: {{ user_progress.progress }}%</div>
+            <div class="text-end small text-muted mt-1">Progress: <span id="moduleProgressValue">{{ user_progress.progress }}</span>%</div>
         </div>
     </div>
     {% for content in contents %}
@@ -35,6 +35,9 @@
                 </ul>
             </div>
             {% endif %}
+            <button class="btn btn-outline-success mark-section-read mt-3" data-section="{{ content.order }}">
+                <i class="bi bi-check2"></i> Mark Section {{ content.order }} as Read
+            </button>
         </div>
     </div>
     {% endfor %}
@@ -44,4 +47,36 @@
         </a>
     </div>
 </div>
+<script>
+const totalSections = {{ contents|length }};
+const sectionValue = Math.floor(99 / totalSections);
+let progressBar = document.getElementById('moduleProgressBar');
+let progressValue = document.getElementById('moduleProgressValue');
+let moduleSlug = "{{ module.slug }}";
+
+document.querySelectorAll('.mark-section-read').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const sectionOrder = this.getAttribute('data-section');
+        fetch(`/modules/ajax-progress/${moduleSlug}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ section: sectionOrder, value: sectionValue })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                progressBar.style.width = data.progress + '%';
+                progressBar.setAttribute('aria-valuenow', data.progress);
+                progressValue.textContent = data.progress;
+                this.disabled = true;
+                this.textContent = 'Section Marked as Read';
+            }
+        });
+    });
+});
+</script>
 {% endblock %} 

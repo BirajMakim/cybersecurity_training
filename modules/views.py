@@ -8,6 +8,8 @@ from dashboard.models import Notification
 from dashboard.utils import send_dashboard_update
 import datetime
 import re
+from django.views.decorators.http import require_POST
+import json
 
 # Create your views here.
 
@@ -252,3 +254,27 @@ def module_quiz(request, slug):
         'questions': questions,
         'user_progress': user_progress,
     })
+
+@require_POST
+@login_required
+def ajax_increment_progress(request, slug):
+    module = get_object_or_404(TrainingModule, slug=slug)
+    progress, _ = UserModuleProgress.objects.get_or_create(user=request.user, module=module)
+    if not progress.is_completed:
+        try:
+            data = json.loads(request.body)
+            value = int(data.get('value', 1))
+        except Exception:
+            value = 1
+        if progress.progress + value < 99:
+            progress.progress += value
+        else:
+            progress.progress = 99
+        progress.save()
+        # Send WebSocket update
+        send_dashboard_update(request.user.id, {
+            "event": "progress_updated",
+            "module_id": module.id,
+            "progress": progress.progress,
+        })
+    return JsonResponse({'success': True, 'progress': progress.progress})

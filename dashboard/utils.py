@@ -20,10 +20,11 @@ def create_user_notification(user, message, notification_type='info'):
 
 def send_dashboard_update(user_id, data):
     channel_layer = get_channel_layer()
-    async_to_sync(channel_layer.group_send)(
-        f"user_{user_id}",
-        {
-            "type": "dashboard_update",
-            "data": data,
-        }
-    ) 
+    if channel_layer is not None:
+        async_to_sync(channel_layer.group_send)(
+            f"user_{user_id}",
+            {
+                "type": "dashboard_update",
+                "data": data,
+            }
+        ) 

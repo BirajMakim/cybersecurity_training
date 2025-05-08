@@ -68,8 +68,22 @@ def register_view(request):
             
             # Redirect to login page
             return redirect('accounts:login')
+        else:
+            # Store errors and data in session
+            request.session['register_form_errors'] = form.errors.get_json_data()
+            request.session['register_form_data'] = request.POST.dict()
+            return redirect('accounts:register')
     else:
-        form = CustomUserCreationForm()
+        form_data = request.session.pop('register_form_data', None)
+        form_errors = request.session.pop('register_form_errors', None)
+        if form_data:
+            form = CustomUserCreationForm(form_data)
+            if form_errors:
+                for field, errors in form_errors.items():
+                    for error in errors:
+                        form.add_error(field, error['message'])
+        else:
+            form = CustomUserCreationForm()
     return render(request, 'accounts/register.html', {'form': form})
 
 def activate_account(request, uidb64, token):

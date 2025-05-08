@@ -52,19 +52,17 @@
         <li><h6 class="dropdown-header">Recent Notifications</h6></li>
         {% for notification in recent_notifications %}
         <li>
-            <a class="dropdown-item {% if not notification.is_read %}fw-bold{% endif %}" href="#">
-                <div class="d-flex align-items-center">
-                    <div class="flex-grow-1">
-                        <p class="mb-0">{{ notification.message }}</p>
-                        <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
-                    </div>
-                    {% if not notification.is_read %}
-                    <button class="btn btn-link btn-sm mark-read" data-notification-id="{{ notification.id }}">
-                        <i class="bi bi-check2-all"></i>
-                    </button>
-                    {% endif %}
+            <div class="dropdown-item {% if not notification.is_read %}fw-bold{% endif %} d-flex align-items-center">
+                <div class="flex-grow-1">
+                    <p class="mb-0">{{ notification.message }}</p>
+                    <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
                 </div>
-            </a>
+                {% if not notification.is_read %}
+                <button class="btn btn-link btn-sm mark-read" data-notification-id="{{ notification.id }}">
+                    <i class="bi bi-check2-all"></i>
+                </button>
+                {% endif %}
+            </div>
         </li>
         {% empty %}
         <li><span class="dropdown-item-text text-muted">No notifications</span></li>
@@ -79,6 +77,10 @@
     </ul>
 </div>
 
+<div id="notification-error" class="alert alert-danger d-none" role="alert" style="position: absolute; top: 0; left: 0; right: 0; z-index: 9999;">
+    <strong>Error:</strong> Failed to update notifications. Please try again.
+</div>
+
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -86,22 +88,28 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.mark-read').forEach(button => {
         button.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation(); // Prevent event bubbling
             const notificationId = this.dataset.notificationId;
-            
-            fetch(`/modules/notifications/${notificationId}/mark-read/`, {
+            fetch(`/dashboard/notifications/${notificationId}/mark-read/`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': getCookie('csrftoken'),
-                    'Content-Type': 'application/json',
-                },
+                    'X-CSRFToken': getCSRFToken(),
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok: ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
-                    const notificationItem = this.closest('.notification-item');
-                    notificationItem.classList.remove('bg-light');
-                    this.remove();
-                    
+                    const notificationItem = this.closest('.notification-item, .dropdown-item');
+                    if (notificationItem) {
+                        notificationItem.classList.remove('bg-light');
+                        this.remove();
+                    }
                     // Update unread count
                     const badge = document.querySelector('.badge');
                     if (badge) {
@@ -112,25 +120,38 @@ document.addEventListener('DOMContentLoaded', function() {
                             badge.remove();
                         }
                     }
+                    hideNotificationError();
+                } else {
+                    showNotificationError();
                 }
+            })
+            .catch(error => {
+                showNotificationError();
+                console.error('Error marking notification as read:', error);
             });
         });
     });
     
     // Helper function to get CSRF token
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
+    function getCSRFToken() {
+        // Try to get from hidden input rendered by {% csrf_token %}
+        const input = document.querySelector('input[name=csrfmiddlewaretoken]');
+        if (input) return input.value;
+        // Fallback to cookie
+        const match = document.cookie.match(/csrftoken=([^;]+)/);
+        return match ? match[1] : null;
+    }
+    function showNotificationError() {
+        const errorDiv = document.getElementById('notification-error');
+        if (errorDiv) {
+            errorDiv.classList.remove('d-none');
         }
-        return cookieValue;
+    }
+    function hideNotificationError() {
+        const errorDiv = document.getElementById('notification-error');
+        if (errorDiv) {
+            errorDiv.classList.add('d-none');
+        }
     }
 });
 </script>

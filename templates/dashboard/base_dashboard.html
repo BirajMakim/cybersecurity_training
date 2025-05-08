@@ -303,6 +303,7 @@
     </style>
 </head>
 <body class="bg-light">
+    {% csrf_token %}
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
@@ -512,21 +513,13 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Get CSRF token from cookie
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
-                }
-            }
-            return cookieValue;
+        function getCSRFToken() {
+            const input = document.querySelector('input[name=csrfmiddlewaretoken]');
+            if (input) return input.value;
+            const match = document.cookie.match(/csrftoken=([^;]+)/);
+            return match ? match[1] : null;
         }
-        const csrfToken = getCookie('csrftoken');
+        const csrfToken = getCSRFToken();
 
         // Handle mobile dropdowns
         const dropdowns = document.querySelectorAll('.dropdown-menu');
@@ -562,7 +555,7 @@
         function updateNotificationCount() {
             fetch('{% url "dashboard:get_unread_count" %}', {
                 headers: {
-                    'X-CSRFToken': csrfToken,
+                    'X-CSRFToken': getCSRFToken(),
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
@@ -584,7 +577,7 @@
         function loadLatestNotifications() {
             fetch('{% url "dashboard:get_latest_notifications" %}', {
                 headers: {
-                    'X-CSRFToken': csrfToken,
+                    'X-CSRFToken': getCSRFToken(),
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
@@ -633,9 +626,8 @@
                         fetch(`/dashboard/notifications/${notificationId}/mark-read/`, {
                             method: 'POST',
                             headers: {
-                                'X-CSRFToken': csrfToken,
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'Content-Type': 'application/json'
+                                'X-CSRFToken': getCSRFToken(),
+                                'X-Requested-With': 'XMLHttpRequest'
                             }
                         })
                         .then(response => {

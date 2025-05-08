@@ -60,8 +60,7 @@ def dashboard(request):
         # Get current courses (in-progress modules)
         current_courses = UserModuleProgress.objects.filter(
             user=user,
-            is_completed=False,
-            progress__gt=0
+            is_completed=False
         ).select_related('module').order_by('-last_accessed')
         
         # Get recent activity

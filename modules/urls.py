@@ -16,4 +16,5 @@ urlpatterns = [
     path('learning-paths/<int:path_id>/', views.learning_path_detail, name='learning_path_detail'),
     path('<slug:slug>/quiz/', views.module_quiz, name='module_quiz'),
     path('<slug:slug>/', views.module_detail, name='module_detail'),
+    path('ajax-progress/<slug:slug>/', views.ajax_increment_progress, name='ajax_increment_progress'),
 ] 
