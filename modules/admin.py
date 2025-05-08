@@ -3,11 +3,14 @@ from django.utils.html import format_html
 from django.db import models
 from django.urls import reverse
 from django.utils.safestring import mark_safe
-from .models import TrainingModule, UserModuleProgress, LearningPath, Notification, ModuleContent, AssessmentQuestion, UserAssessment
+from .models import TrainingModule, UserModuleProgress, LearningPath, ModuleContent, AssessmentQuestion, UserAssessment
+from dashboard.models import Notification
+from django_ckeditor_5.widgets import CKEditor5Widget
+from django import forms
 
 class ModuleInline(admin.TabularInline):
     model = TrainingModule
-    fields = ('title', 'difficulty', 'duration', 'is_active')
+    fields = ('title', 'difficulty', 'duration')
     extra = 0
     show_change_link = True
 
@@ -69,13 +72,22 @@ class UserModuleProgressAdmin(admin.ModelAdmin):
 
 @admin.register(Notification)
 class NotificationAdmin(admin.ModelAdmin):
-    list_display = ('user', 'module', 'message', 'is_read', 'created_at')
-    list_filter = ('is_read', 'created_at')
-    search_fields = ('user__username', 'message', 'module__title')
-    readonly_fields = ('created_at',)
+    list_display = ('user', 'message', 'type', 'is_read', 'timestamp')
+    list_filter = ('type', 'is_read', 'timestamp')
+    search_fields = ('user__username', 'message')
+    readonly_fields = ('timestamp',)
+
+class ModuleContentAdminForm(forms.ModelForm):
+    class Meta:
+        model = ModuleContent
+        fields = '__all__'
+        widgets = {
+            'text': CKEditor5Widget(config_name='default'),
+        }
 
 @admin.register(ModuleContent)
 class ModuleContentAdmin(admin.ModelAdmin):
+    form = ModuleContentAdminForm
     list_display = ('module', 'order', 'youtube_url')
     search_fields = ('module__title', 'text')
     ordering = ('module', 'order')

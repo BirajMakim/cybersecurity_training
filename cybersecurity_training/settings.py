@@ -11,6 +11,15 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Debug: Print current working directory and .env file existence
+print(f"Current working directory: {os.getcwd()}")
+print(f".env file exists: {os.path.exists('.env')}")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,7 +29,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-hl6wigqn7!n*zi!p!zuowh&23*k$i(@_cvolf)d(e_dq1)ps+b'
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-hl6wigqn7!n*zi!p!zuowh&23*k$i(@_cvolf)d(e_dq1)ps+b')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -49,7 +58,8 @@ INSTALLED_APPS = [
     'quizzes',  # Your custom app for quizzes
     'django_browser_reload',  
     'dashboard',
-    'ckeditor',
+    'django_ckeditor_5',  # Replaced ckeditor with django_ckeditor_5
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -82,6 +92,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'cybersecurity_training.wsgi.application'
 
+ASGI_APPLICATION = 'cybersecurity_training.asgi.application'
+
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
@@ -89,11 +101,11 @@ WSGI_APPLICATION = 'cybersecurity_training.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'postgres',
-        'USER': 'postgres.kgexeshuuoonbrgoyazp',
-        'PASSWORD': '6XB07HW15D81nxUR',
-        'HOST': 'aws-0-ap-southeast-2.pooler.supabase.com',
-        'PORT': '6543',
+        'NAME': os.getenv('DB_NAME', 'postgres'),
+        'USER': os.getenv('DB_USER', 'postgres.kgexeshuuoonbrgoyazp'),
+        'PASSWORD': os.getenv('DB_PASSWORD', '6XB07HW15D81nxUR'),
+        'HOST': os.getenv('DB_HOST', 'aws-0-ap-southeast-2.pooler.supabase.com'),
+        'PORT': os.getenv('DB_PORT', '6543'),
         'OPTIONS': {
             'connect_timeout': 30,
             'sslmode': 'require',
@@ -102,10 +114,25 @@ DATABASES = {
             'keepalives_idle': 30,
             'keepalives_interval': 10,
             'keepalives_count': 5,
-            'application_name': 'django_app'  # Add application name for better tracking
-        }
+            'application_name': 'django_app'
+        },
     }
 }
+
+# Debug: Print environment variables
+print("\nEnvironment Variables:")
+print(f"DB_NAME: {os.getenv('DB_NAME')}")
+print(f"DB_USER: {os.getenv('DB_USER')}")
+print(f"DB_HOST: {os.getenv('DB_HOST')}")
+print(f"DB_PORT: {os.getenv('DB_PORT')}")
+print(f"EMAIL_HOST_USER: {os.getenv('EMAIL_HOST_USER')}")
+
+# Debug print database configuration
+print("Database Configuration:")
+print(f"NAME: {os.getenv('DB_NAME')}")
+print(f"USER: {os.getenv('DB_USER')}")
+print(f"HOST: {os.getenv('DB_HOST')}")
+print(f"PORT: {os.getenv('DB_PORT')}")
 
 
 # Password validation
@@ -134,11 +161,10 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 EMAIL_TIMEOUT = 30
-EMAIL_FROM = 'birajmakim802@gmail.com'
-EMAIL_HOST_USER = 'birajmakim802@gmail.com'
-# Generate a new App Password from Google Account settings and replace it here
-EMAIL_HOST_PASSWORD = 'uakmewgyfsi'  # Put your new 16-character app password here
-DEFAULT_FROM_EMAIL = 'birajmakim802@gmail.com'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'birajmakim802@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'uakmewgyfsiwpjqs')
+EMAIL_FROM = EMAIL_HOST_USER
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 
 # Internationalization
@@ -174,3 +200,19 @@ PASSWORD_HASHERS = [
 # Authentication settings
 LOGIN_URL = '/accounts/login/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+# CKEditor 5 Configuration
+CKEDITOR_5_CONFIGS = {
+    'default': {
+        'toolbar': ['heading', '|', 'bold', 'italic', 'link',
+                   'bulletedList', 'numberedList', 'blockQuote', 'imageUpload', ],
+    }
+}
+
+# CKEditor 5 Upload Settings
+CKEDITOR_5_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+CKEDITOR_5_UPLOAD_PATH = "uploads/"
+
+# Media files (User uploads)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

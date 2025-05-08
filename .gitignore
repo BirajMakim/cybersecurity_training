@@ -1,6 +1,10 @@
+# Environment variables
+.env
+
 # Python
-*.py[cod]
 __pycache__/
+*.py[cod]
+*$py.class
 *.so
 .Python
 env/
@@ -21,27 +25,22 @@ var/
 
 # Django
 *.log
-*.pot
-*.pyc
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 media/
+static/
 
 # Virtual Environment
 venv/
 ENV/
-.env
 
-# VS Code
-.vscode/
-*.code-workspace
-
-# PyCharm
+# IDE
 .idea/
+.vscode/
+*.swp
+*.swo
 
-# macOS
+# OS
 .DS_Store
-
-# Windows
 Thumbs.db 

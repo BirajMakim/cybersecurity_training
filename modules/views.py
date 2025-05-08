@@ -3,7 +3,9 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.utils import timezone
 from django.db.models import Count
-from .models import TrainingModule, UserModuleProgress, LearningPath, Notification, ModuleContent, AssessmentQuestion, UserAssessment
+from .models import TrainingModule, UserModuleProgress, LearningPath, ModuleContent, AssessmentQuestion, UserAssessment
+from dashboard.models import Notification
+from dashboard.utils import send_dashboard_update
 import datetime
 import re
 
@@ -43,7 +45,7 @@ def start_module(request, slug):
     )
     
     if created:
-        # Notification will be created via signal
+        send_dashboard_update(request.user.id, {"event": "module_started", "module": module.title})
         return redirect('modules:module_detail', slug=slug)
     else:
         return redirect('modules:resume_module', slug=slug)
@@ -60,6 +62,7 @@ def resume_module(request, slug):
     # Update last accessed time
     progress.last_accessed = timezone.now()
     progress.save()
+    send_dashboard_update(request.user.id, {"event": "module_resumed", "module": module.title})
     
     return redirect('modules:module_detail', slug=slug)
 
@@ -81,6 +84,7 @@ def update_progress(request, slug):
                     progress.is_completed = True
                     progress.completed_at = timezone.now()
                 progress.save()
+                send_dashboard_update(request.user.id, {"event": "progress_updated", "module": module.title, "progress": new_progress})
                 return JsonResponse({'success': True})
         except ValueError:
             pass
@@ -170,34 +174,11 @@ def learning_path_list(request):
 @login_required
 def learning_path_detail(request, path_id):
     learning_path = get_object_or_404(LearningPath, id=path_id, is_active=True)
-    modules = learning_path.modules.filter(is_active=True).order_by('order')
-    
-    # Get user progress for all modules in this path
-    user_progress = {
-        progress.module_id: progress
-        for progress in UserModuleProgress.objects.filter(
-            user=request.user,
-            module__learning_path=learning_path
-        )
-    }
-    
-    # Calculate overall progress
-    total_progress = learning_path.get_progress(request.user)
-    
-    # Attach progress and availability information to each module
-    for module in modules:
-        if module.id in user_progress:
-            module.user_progress = user_progress[module.id]
-        else:
-            module.user_progress = None
-        module.is_available = module.is_available_for_user(request.user)
-    
-    context = {
+    modules = learning_path.get_modules()  # This returns all active modules in order
+    return render(request, 'modules/learning_path_detail.html', {
         'learning_path': learning_path,
         'modules': modules,
-        'total_progress': total_progress
-    }
-    return render(request, 'modules/learning_path_detail.html', context)
+    })
 
 def get_youtube_embed_url(url):
     # Handle watch?v= and youtu.be/ and strip extra params

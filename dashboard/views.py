@@ -69,6 +69,17 @@ def dashboard(request):
             user=user
         ).select_related('module').order_by('-last_accessed')[:5]
         
+        # Calculate hours spent
+        progress_records = UserModuleProgress.objects.filter(user=user)
+        total_seconds = 0
+        for record in progress_records:
+            if record.is_completed and record.completed_at and record.started_at:
+                total_seconds += (record.completed_at - record.started_at).total_seconds()
+            elif record.started_at:
+                end_time = record.last_accessed or timezone.now()
+                total_seconds += (end_time - record.started_at).total_seconds()
+        hours_spent = round(total_seconds / 3600, 2)
+        
         context = {
             'user': user,
             'profile': profile,
@@ -79,7 +90,8 @@ def dashboard(request):
             'unread_notifications_count': Notification.objects.filter(
                 user=user,
                 is_read=False
-            ).count()
+            ).count(),
+            'hours_spent': hours_spent,
         }
         return render(request, 'dashboard/index.html', context)
         
@@ -128,12 +140,11 @@ def notifications(request):
     try:
         # Get all notifications for the user
         notifications_list = Notification.objects.filter(user=request.user)
-        
+        print('DEBUG: notifications_list:', list(notifications_list))  # Debug print
         # Paginate notifications
         paginator = Paginator(notifications_list, 10)
         page_number = request.GET.get('page')
         page_obj = paginator.get_page(page_number)
-        
         context = {
             'notifications': page_obj,
             'unread_count': notifications_list.filter(is_read=False).count(),

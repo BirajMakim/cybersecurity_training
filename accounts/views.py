@@ -161,16 +161,7 @@ def profile_settings(request):
     if request.method == 'POST':
         form = ProfileSettingsForm(request.POST, request.FILES, instance=request.user.user_profile)
         if form.is_valid():
-            profile = form.save(commit=False)
-            
-            # Handle profile photo upload
-            if 'profile_photo' in request.FILES:
-                photo = request.FILES['profile_photo']
-                file_name = f"profile_photos/{request.user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{photo.name}"
-                file_path = default_storage.save(file_name, ContentFile(photo.read()))
-                profile.profile_photo = file_path
-            
-            profile.save()
+            profile = form.save(commit=True)  # Let ModelForm handle file upload
             profile.calculate_profile_complete()
             messages.success(request, 'Profile settings updated successfully!')
             return redirect('accounts:profile')

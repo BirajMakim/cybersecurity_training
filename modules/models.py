@@ -7,7 +7,7 @@ from django.utils import timezone
 from django.db.models import Max
 from django.utils.text import slugify
 from django.contrib.postgres.fields import JSONField
-from ckeditor.fields import RichTextField
+from django_ckeditor_5.fields import CKEditor5Field
 
 User = get_user_model()
 
@@ -22,6 +22,7 @@ class LearningPath(models.Model):
     order = models.IntegerField(default=0, help_text="Order in which the learning path appears")
     icon_name = models.CharField(max_length=50, help_text="Bootstrap icon name", default='mortarboard')
     auto_unlock = models.BooleanField(default=False, help_text="If True, modules will unlock automatically regardless of prerequisites")
+    overview = CKEditor5Field('Overview', blank=True, help_text="Overview or structure of the learning path (supports rich text)")
     
     class Meta:
         ordering = ['order', 'name']
@@ -101,6 +102,8 @@ class TrainingModule(models.Model):
         blank=True,
         help_text="Bootstrap icon name for completion badge"
     )
+    is_active = models.BooleanField(default=True, help_text="Designates whether this module is active.")
+    order = models.PositiveIntegerField(default=1, help_text="Order of this module in the learning path")
 
     def save(self, *args, **kwargs):
         if not self.slug:
@@ -209,7 +212,7 @@ class Notification(models.Model):
 
 class ModuleContent(models.Model):
     module = models.ForeignKey(TrainingModule, on_delete=models.CASCADE, related_name='contents')
-    text = RichTextField(help_text='Learning material (rich text, HTML allowed)')
+    text = CKEditor5Field('Content', help_text='Learning material (rich text, HTML allowed)')
     youtube_url = models.URLField(blank=True, null=True, help_text='YouTube video URL (optional)')
     external_links = models.TextField(blank=True, help_text='Comma-separated URLs for external resources (optional)')
     order = models.PositiveIntegerField(default=1, help_text='Order of content sections')
