@@ -1,0 +1,191 @@
+{% block extra_css %}
+<style>
+    .chat-widget {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 350px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        height: 450px;
+        min-height: 300px;
+        max-height: 500px;
+    }
+
+    .chat-header {
+        padding: 15px;
+        background: #007bff;
+        color: white;
+        border-radius: 10px 10px 0 0;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chat-body {
+        padding: 15px;
+        overflow-y: auto;
+        flex-grow: 1;
+        min-height: 150px;
+        height: 100%;
+        max-height: 300px;
+    }
+
+    .chat-footer {
+        padding: 15px;
+        border-top: 1px solid #eee;
+    }
+
+    .message {
+        margin-bottom: 10px;
+        padding: 8px 12px;
+        border-radius: 15px;
+        max-width: 80%;
+    }
+
+    .user-message {
+        background: #007bff;
+        color: white;
+        margin-left: auto;
+    }
+
+    .bot-message {
+        background: #f1f1f1;
+        margin-right: auto;
+    }
+
+    .chat-input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 20px;
+        outline: none;
+    }
+
+    .chat-toggle {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 60px;
+        height: 60px;
+        background: #007bff;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+    }
+
+    .hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+<div class="chat-toggle" id="chatToggle">
+    <i class="fas fa-comments"></i>
+</div>
+
+<div class="chat-widget hidden" id="chatWidget">
+    <div class="chat-header" id="chatHeader">
+        <span>Chat Assistant</span>
+        <i class="fas fa-times" id="closeChat"></i>
+    </div>
+    <div class="chat-body" id="chatBody">
+        {% for message in messages %}
+            <div class="message user-message">{{ message.message }}</div>
+            <div class="message bot-message">{{ message.response }}</div>
+        {% endfor %}
+    </div>
+    <div class="chat-footer">
+        <form id="chatForm" class="d-flex">
+            <input type="text" class="chat-input" id="messageInput" placeholder="Type your message...">
+            <button type="submit" class="btn btn-primary ms-2">Send</button>
+        </form>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatToggle = document.getElementById('chatToggle');
+    const chatWidget = document.getElementById('chatWidget');
+    const closeChat = document.getElementById('closeChat');
+    const chatForm = document.getElementById('chatForm');
+    const messageInput = document.getElementById('messageInput');
+    const chatBody = document.getElementById('chatBody');
+
+    chatToggle.addEventListener('click', function() {
+        chatWidget.classList.remove('hidden');
+        chatToggle.classList.add('hidden');
+    });
+
+    closeChat.addEventListener('click', function() {
+        chatWidget.classList.add('hidden');
+        chatToggle.classList.remove('hidden');
+    });
+
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const message = messageInput.value.trim();
+        if (!message) return;
+
+        // Add user message to chat
+        appendMessage(message, 'user');
+        messageInput.value = '';
+
+        // Send message to server
+        fetch('{% url "chatbot:send_message" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `message=${encodeURIComponent(message)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                appendMessage('Error: ' + data.error, 'bot');
+            } else {
+                appendMessage(data.response, 'bot');
+            }
+        })
+        .catch(error => {
+            appendMessage('Error: Could not send message', 'bot');
+        });
+    });
+
+    function appendMessage(text, sender) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        messageDiv.textContent = text;
+        chatBody.appendChild(messageDiv);
+        chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %} 

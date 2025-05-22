@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid d-flex justify-content-center align-items-center" style="min-height: 90vh; background: #f8f9fa;">
+    <div>
+        <div class="certificate-a4-box shadow rounded bg-white mx-auto">
+            <div class="text-center mb-4">
+                <!-- Organization Logo -->
+                <img src="{% static 'images/logo.png' %}" alt="Organization Logo" style="max-height: 90px;">
+            </div>
+            <h1 class="text-center mb-3" style="font-size:2.8rem; font-weight:bold;">Certificate of Completion</h1>
+            <p class="text-center" style="font-size:1.3rem;">This is to certify that</p>
+            <h2 class="text-center mb-3" style="font-weight:bold; font-size:2.2rem;">{{ request.user.get_full_name }}</h2>
+            <p class="text-center mb-4" style="font-size:1.25rem;">
+                has successfully completed <strong>all training modules</strong> in the Cybersecurity Awareness Training Platform.
+            </p>
+            <div class="row mb-5">
+                <div class="col-6 text-start">
+                    <strong>Date of Completion:</strong><br>
+                    {{ master_certificate.issued_date|date:"F d, Y" }}
+                </div>
+                <div class="col-6 text-end">
+                    <strong>Certificate ID:</strong> {{ master_certificate.certificate_id }}<br>
+                    <strong>Verification Code:</strong> {{ master_certificate.verification_code }}
+                </div>
+            </div>
+            <div class="row align-items-end mt-5">
+                <div class="col-6 text-start">
+                    <img src="{% static 'images/signature.png' %}" alt="Signature" style="max-height: 60px;"><br>
+                    <span style="font-weight:bold; font-size:1.1rem;">Training Administrator</span><br>
+                    <span style="font-size:1rem;">Cybersecurity Awareness Training Platform</span>
+                </div>
+                <div class="col-6 text-end">
+                    <span style="font-size:1rem; color:#888;">Powered by Your Organization</span>
+                </div>
+            </div>
+        </div>
+        <div class="text-center mt-4">
+            <a href="{% url 'modules:download_master_certificate' %}" class="btn btn-success btn-lg" target="_blank">
+                Download PDF
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.certificate-a4-box {
+    width: 794px; /* A4 width in px at 96dpi */
+    height: 1123px; /* A4 height in px at 96dpi */
+    background: #fffbe6;
+    border: 10px solid #e0c97f;
+    padding: 60px 60px 40px 60px;
+    margin: 40px auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-sizing: border-box;
+}
+@media (max-width: 900px) {
+    .certificate-a4-box {
+        width: 100vw;
+        height: auto;
+        padding: 20px 5vw;
+    }
+}
+</style>
+{% endblock %} 

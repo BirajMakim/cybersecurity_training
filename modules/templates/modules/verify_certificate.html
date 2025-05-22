@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h1 class="mb-4">Certificate Verification</h1>
+                    
+                    <div class="verification-result">
+                        <div class="alert alert-success">
+                            <h4 class="alert-heading">Certificate Verified!</h4>
+                            <p>This certificate is valid and has been verified.</p>
+                        </div>
+                        
+                        <div class="certificate-details mt-4">
+                            <h3>Certificate Details</h3>
+                            <table class="table">
+                                <tbody>
+                                    <tr>
+                                        <th>Recipient</th>
+                                        <td>{{ user.get_full_name }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Module</th>
+                                        <td>{{ module.title }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Date Issued</th>
+                                        <td>{{ issued_date }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Certificate ID</th>
+                                        <td>{{ certificate.certificate_id }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Verification Code</th>
+                                        <td>{{ verification_code }}</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Issuing Organization</th>
+                                        <td>{{ organization_name }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.verification-result {
+    padding: 2rem;
+}
+
+.certificate-details {
+    text-align: left;
+}
+
+.table th {
+    width: 200px;
+    background-color: #f8f9fa;
+}
+</style>
+{% endblock %} 

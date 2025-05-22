@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Certificate of Completion</title>
+    <style>
+        @page {
+            size: landscape;
+            margin: 0;
+        }
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            margin: 0;
+            padding: 2cm;
+            background: #fff;
+        }
+        .certificate {
+            border: 2px solid #gold;
+            padding: 2cm;
+            text-align: center;
+            position: relative;
+            min-height: 21cm;
+            background: #fff;
+        }
+        .logo {
+            max-height: 100px;
+            margin-bottom: 1cm;
+        }
+        .title {
+            font-size: 36pt;
+            color: #2c3e50;
+            margin-bottom: 1cm;
+            font-weight: bold;
+        }
+        .text {
+            font-size: 14pt;
+            color: #34495e;
+            margin: 0.5cm 0;
+        }
+        .name {
+            font-size: 24pt;
+            color: #2c3e50;
+            margin: 0.5cm 0;
+            font-weight: bold;
+        }
+        .module {
+            font-size: 20pt;
+            color: #2c3e50;
+            margin: 0.5cm 0;
+            font-weight: bold;
+        }
+        .date {
+            font-size: 14pt;
+            color: #34495e;
+            margin: 0.5cm 0;
+            font-style: italic;
+        }
+        .verification {
+            position: absolute;
+            bottom: 1cm;
+            left: 0;
+            right: 0;
+            font-size: 10pt;
+            color: #7f8c8d;
+        }
+        .verification p {
+            margin: 0.2cm 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="certificate">
+        <img src="{{ organization_logo }}" alt="{{ organization_name }} Logo" class="logo">
+        
+        <h1 class="title">Certificate of Completion</h1>
+        
+        <p class="text">This is to certify that</p>
+        <h2 class="name">{{ user.get_full_name }}</h2>
+        
+        <p class="text">has successfully completed the training module</p>
+        <h3 class="module">{{ module.title }}</h3>
+        
+        <p class="text">on</p>
+        <p class="date">{{ issued_date }}</p>
+        
+        <div class="verification">
+            <p>Certificate ID: {{ certificate.certificate_id }}</p>
+            <p>Verification Code: {{ verification_code }}</p>
+            <p>Verify this certificate at: {{ request.scheme }}://{{ request.get_host }}{% url 'modules:verify_certificate' verification_code %}</p>
+        </div>
+    </div>
+</body>
+</html> 

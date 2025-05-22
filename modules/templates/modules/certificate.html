@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card certificate-card">
+                <div class="card-body text-center">
+                    <img src="{{ organization_logo }}" alt="{{ organization_name }} Logo" class="mb-4" style="max-height: 100px;">
+                    
+                    <h1 class="certificate-title mb-4">Certificate of Completion</h1>
+                    
+                    <p class="certificate-text">This is to certify that</p>
+                    <h2 class="recipient-name mb-4">{{ user.get_full_name }}</h2>
+                    
+                    <p class="certificate-text">has successfully completed the training module</p>
+                    <h3 class="module-name mb-4">{{ module.title }}</h3>
+                    
+                    <p class="certificate-text">on</p>
+                    <p class="date mb-4">{{ issued_date }}</p>
+                    
+                    <div class="verification-section mt-4">
+                        <p class="verification-text">Certificate ID: {{ certificate.certificate_id }}</p>
+                        <p class="verification-text">Verification Code: {{ verification_code }}</p>
+                    </div>
+                    
+                    <div class="mt-5">
+                        <a href="{% url 'modules:download_certificate' certificate.certificate_id %}" class="btn btn-primary">
+                            Download Certificate (PDF)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.certificate-card {
+    border: 2px solid #gold;
+    padding: 2rem;
+    background: #fff;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+}
+
+.certificate-title {
+    color: #2c3e50;
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.recipient-name {
+    color: #2c3e50;
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.module-name {
+    color: #2c3e50;
+    font-size: 1.8rem;
+    font-weight: bold;
+}
+
+.certificate-text {
+    color: #34495e;
+    font-size: 1.2rem;
+    margin: 1rem 0;
+}
+
+.date {
+    color: #34495e;
+    font-size: 1.2rem;
+    font-style: italic;
+}
+
+.verification-section {
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+}
+
+.verification-text {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    margin: 0.5rem 0;
+}
+</style>
+{% endblock %} 

@@ -1,0 +1,1 @@
+web: gunicorn cybersecurity_training.wsgi:application 

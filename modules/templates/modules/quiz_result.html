@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h2 class="mb-4">Quiz Results</h2>
+                    
+                    <div class="result-summary mb-4">
+                        <h3>{{ module.title }}</h3>
+                        <p class="lead">Your Score: {{ score }}%</p>
+                        <p>Correct Answers: {{ correct }} out of {{ total }}</p>
+                        
+                        {% if passed %}
+                            <div class="alert alert-success">
+                                <h4 class="alert-heading">Congratulations!</h4>
+                                <p>You have passed the quiz and completed the module.</p>
+                            </div>
+                            
+                            {% if certificate %}
+                            <div class="certificate-section mt-4">
+                                <h4>Your Certificate</h4>
+                                <p>You have earned a certificate for completing this module.</p>
+                                <div class="mt-3">
+                                    <a href="{% url 'modules:view_certificate' certificate.certificate_id %}" class="btn btn-primary">
+                                        View Certificate
+                                    </a>
+                                    <a href="{% url 'modules:download_certificate' certificate.certificate_id %}" class="btn btn-success">
+                                        Download Certificate
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <h4 class="alert-heading">Not Passed</h4>
+                                <p>You need to score at least 60% to pass. Please try again.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'modules:module_detail' module.slug %}" class="btn btn-secondary">
+                            Back to Module
+                        </a>
+                        {% if not passed %}
+                            <a href="{% url 'modules:module_quiz' module.slug %}" class="btn btn-primary">
+                                Retry Quiz
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.result-summary {
+    padding: 2rem;
+    background: #f8f9fa;
+    border-radius: 0.5rem;
+}
+
+.certificate-section {
+    padding: 1.5rem;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    margin-top: 2rem;
+}
+</style>
+{% endblock %} 
